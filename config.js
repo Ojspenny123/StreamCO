@@ -148,11 +148,22 @@
       { id: "apac", tam: 14000000, tolerance: 0.78, unlock: 64000, localise: 18000 },
       { id: "latam", tam: 8000000, tolerance: 0.72, unlock: 36000, localise: 14000 },
     ],
+    moviePacks: [
+      { id: "action", name: "Action Pack", title: "Action Pack", genre: "Drama", cost: 7000, days: 180, quality: 1.8, upkeep: 80 },
+      { id: "romcom", name: "Rom-Com Pack", title: "Rom-Com Pack", genre: "Comedy", cost: 6500, days: 180, quality: 1.5, upkeep: 70 },
+      { id: "family", name: "Family Pack", title: "Family Pack", genre: "Kids", cost: 6000, days: 180, quality: 1.4, upkeep: 65 },
+      { id: "classics", name: "Classics Pack", title: "Classics Pack", genre: "Documentary", cost: 9000, days: 180, quality: 2, upkeep: 95 },
+      { id: "horror", name: "Horror Pack", title: "Horror Pack", genre: "Drama", cost: 7500, days: 180, quality: 1.7, upkeep: 85 },
+      { id: "scifi", name: "Sci-Fi Pack", title: "Sci-Fi Pack", genre: "Documentary", cost: 8500, days: 180, quality: 1.9, upkeep: 90 },
+    ],
     sports: {
       football: { id: "football", name: "Football Package", title: "Football Package", genre: "Sport", cost: 24000, days: 90, quality: 1.7, upkeep: 210, marketing: 0.28 },
       basketball: { id: "basketball", name: "Basketball Package", title: "Basketball Package", genre: "Sport", cost: 20000, days: 90, quality: 1.5, upkeep: 180, marketing: 0.22 },
       tennis: { id: "tennis", name: "Tennis Package", title: "Tennis Package", genre: "Sport", cost: 14000, days: 90, quality: 1.2, upkeep: 120, marketing: 0.12 },
       motorsport: { id: "motorsport", name: "Motorsport Package", title: "Motorsport Package", genre: "Sport", cost: 26000, days: 90, quality: 1.6, upkeep: 200, marketing: 0.24 },
+      cricket: { id: "cricket", name: "Cricket Package", title: "Cricket Package", genre: "Sport", cost: 16000, days: 90, quality: 1.3, upkeep: 140, marketing: 0.14 },
+      combat: { id: "combat", name: "Combat Sports Package", title: "Combat Sports Package", genre: "Sport", cost: 18000, days: 90, quality: 1.35, upkeep: 150, marketing: 0.16 },
+      rugby: { id: "rugby", name: "Rugby Package", title: "Rugby Package", genre: "Sport", cost: 17000, days: 90, quality: 1.3, upkeep: 145, marketing: 0.14 },
     },
     milestones: [1000, 10000, 100000, 1000000, 5000000],
   };

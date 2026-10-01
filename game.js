@@ -73,6 +73,9 @@ if (CONFIG.sports) {
     LICENSES[id] = Object.assign({ id, marketing: 0.2 }, CONFIG.sports[id]);
   });
 }
+(CONFIG.moviePacks || []).forEach((pack) => {
+  LICENSES[pack.id] = Object.assign({ id: pack.id, marketing: 0 }, pack);
+});
 
 const REGIONS = [
   { id: "uk", name: "United Kingdom", tam: 4200000, tolerance: 1, favourite: "Comedy", unlock: 0, localise: 0, rival: "flixora", color: "#E50914" },
@@ -104,10 +107,14 @@ const RIVAL_ROSTER = [
 
 const UPGRADES = [
   { id: "commission", group: "Content", name: "Content desk", effect: "Acquire a title or create an original", action: "commission", icon: "sitcom" },
+  { id: "movies", group: "Content", name: "Movie library", effect: "A different film bundle each time", action: "library", icon: "movies" },
   { id: "football", group: "Content", name: "Football Package", effect: "90-day sports deal", action: "license", icon: "sports" },
   { id: "basketball", group: "Content", name: "Basketball Package", effect: "90-day sports deal", action: "license", icon: "sports" },
   { id: "tennis", group: "Content", name: "Tennis Package", effect: "90-day sports deal", action: "license", icon: "sports" },
   { id: "motorsport", group: "Content", name: "Motorsport Package", effect: "90-day sports deal", action: "license", icon: "sports" },
+  { id: "cricket", group: "Content", name: "Cricket Package", effect: "90-day sports deal", action: "license", icon: "sports" },
+  { id: "combat", group: "Content", name: "Combat Sports Package", effect: "90-day sports deal", action: "license", icon: "sports" },
+  { id: "rugby", group: "Content", name: "Rugby Package", effect: "90-day sports deal", action: "license", icon: "sports" },
   { id: "social", group: "Growth", name: "Social media campaign", effect: "+10% growth", cost: 2500, marketing: 0.1, icon: "social", event: "The social campaign is picking up shares." },
   { id: "tv", group: "Growth", name: "TV advertising", effect: "+25% growth", cost: 8000, marketing: 0.25, icon: "tv", event: "The TV spot is on the air." },
   { id: "app", group: "Growth", name: "Mobile app", effect: "+15% growth", cost: 12000, marketing: 0.15, icon: "app", event: "The mobile app is in people's pockets." },
@@ -882,6 +889,18 @@ function activeLicense(id) {
   return titles.some((title) => title.licenseId === id && title.status === "released" && title.contractDays > 0);
 }
 
+function moviePackList() {
+  return (CONFIG.moviePacks || []).map((pack) => LICENSES[pack.id]).filter(Boolean);
+}
+
+function nextMoviePack() {
+  return moviePackList().find((pack) => !activeLicense(pack.id)) || null;
+}
+
+function ownedMoviePacks() {
+  return moviePackList().filter((pack) => activeLicense(pack.id)).length;
+}
+
 function signLicense(id, silent) {
   if (state.status !== "playing" && !silent) return false;
   const def = LICENSES[id];
@@ -914,6 +933,10 @@ function signLicense(id, silent) {
 
 function upgradeCost(upgrade, count) {
   if (!upgrade) return 0;
+  if (upgrade.action === "library") {
+    const next = nextMoviePack();
+    return next ? licenseCost(next.id) : 0;
+  }
   if (upgrade.action === "license") return licenseCost(upgrade.id);
   if (upgrade.action === "commission") return BUDGETS.low.cost;
   const ownedSoFar = count === undefined ? ownedCount(upgrade.id) : count;
@@ -926,6 +949,10 @@ function buyUpgrade(id) {
   if (upgrade.action === "commission") {
     openCommission();
     return false;
+  }
+  if (upgrade.action === "library") {
+    const next = nextMoviePack();
+    return next ? !!signLicense(next.id) : false;
   }
   if (upgrade.action === "license") return !!signLicense(id);
   const count = ownedCount(id);
@@ -2814,27 +2841,32 @@ function updateUpgradeCards(view) {
   UPGRADES.forEach((upgrade) => {
     const card = document.querySelector(`[data-upgrade="${upgrade.id}"]`);
     if (!card) return;
-    const count = ownedCount(upgrade.id);
+    const count = upgrade.action === "library" ? ownedMoviePacks() : ownedCount(upgrade.id);
     let cost = upgrade.action === "commission" ? 0 : upgradeCost(upgrade);
     const live = upgrade.action === "license" && activeLicense(upgrade.id);
-    const kind = upgrade.action === "commission" || live ? "cash" : payKind(cost);
-    const blocked = view.status !== "playing" || live || kind === "over";
+    const soldOut = upgrade.action === "library" && !nextMoviePack();
+    const kind = upgrade.action === "commission" || live || soldOut ? "cash" : payKind(cost);
+    const blocked = view.status !== "playing" || live || soldOut || kind === "over";
     card.classList.toggle("is-unaffordable", blocked && upgrade.action !== "commission");
     const costEl = card.querySelector(".upgrade-cost");
     if (costEl) {
-      costEl.textContent = upgrade.action === "commission" ? "Acquire or create" : live ? "On the service" : `${formatCash(cost)} · after ${formatCash(state.cash - cost)}`;
+      const next = upgrade.action === "library" ? nextMoviePack() : null;
+      if (upgrade.action === "commission") costEl.textContent = "Acquire or create";
+      else if (live || soldOut) costEl.textContent = "Owned";
+      else if (next) costEl.textContent = `${next.name} · ${formatCash(cost)} · after ${formatCash(state.cash - cost)}`;
+      else costEl.textContent = `${formatCash(cost)} · after ${formatCash(state.cash - cost)}`;
     }
     const badge = card.querySelector(".owned-badge");
     if (badge) {
       badge.hidden = count <= 0 && !live;
-      badge.textContent = live ? "Live" : `x${count}`;
+      badge.textContent = live || soldOut ? "Owned" : `x${count}`;
     }
     const button = card.querySelector(".buy-button");
     if (button) {
       button.disabled = blocked && upgrade.action !== "commission";
-      button.classList.toggle("buy-credit", kind === "credit");
+      button.classList.toggle("buy-credit", kind === "credit" && !live && !soldOut);
       if (upgrade.action === "commission") button.textContent = "Open";
-      else if (live) button.textContent = "Live";
+      else if (live || soldOut) button.textContent = "Owned";
       else if (kind === "over") button.textContent = "Over credit limit";
       else if (kind === "credit") button.textContent = "Buy on credit";
       else button.textContent = "Buy";
