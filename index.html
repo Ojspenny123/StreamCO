@@ -2,8 +2,18 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>StreamCo</title>
+  <link rel="icon" type="image/svg+xml" href="./icons/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="./icons/favicon-16.png">
+  <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <meta name="theme-color" content="#FFF8EE">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="StreamCo">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
@@ -12,11 +22,7 @@
 <body>
   <header class="topbar">
     <div class="logo">
-      <span class="logo-mark" aria-hidden="true">
-        <svg viewBox="0 0 24 24" width="22" height="22" focusable="false">
-          <path fill="currentColor" d="M7.5 4.8v14.4L19.2 12 7.5 4.8z"/>
-        </svg>
-      </span>
+      <img class="brand-logo" src="./icons/logo.svg" alt="StreamCo logo">
       <span class="logo-word js-service-name">StreamCo</span>
     </div>
 
@@ -81,11 +87,7 @@
       <section class="panel dashboard" aria-labelledby="tier-name">
         <div class="hero">
           <div class="logo logo-lg">
-            <span class="logo-mark" aria-hidden="true">
-              <svg viewBox="0 0 24 24" width="28" height="28" focusable="false">
-                <path fill="currentColor" d="M7.5 4.8v14.4L19.2 12 7.5 4.8z"/>
-              </svg>
-            </span>
+            <img class="brand-logo" src="./icons/logo.svg" alt="StreamCo logo">
             <span class="logo-word js-service-name">StreamCo</span>
           </div>
           <p class="tier-name" id="tier-name">New Service</p>
@@ -264,7 +266,10 @@
   </div>
 
   <div class="endscreen" id="win-screen" hidden>
-    <p class="modal-kicker js-service-name">StreamCo</p>
+    <div class="logo logo-end">
+      <img class="brand-logo" src="./icons/logo.svg" alt="StreamCo logo">
+      <p class="modal-kicker js-service-name">StreamCo</p>
+    </div>
     <h2 id="win-heading">Global Giant</h2>
     <p class="modal-line" id="win-line">A million subscribers. The world is watching.</p>
     <dl class="endscreen-stats" id="win-stats"></dl>
@@ -275,7 +280,10 @@
   </div>
 
   <div class="endscreen" id="lose-screen" hidden>
-    <p class="modal-kicker js-service-name">StreamCo</p>
+    <div class="logo logo-end">
+      <img class="brand-logo" src="./icons/logo.svg" alt="StreamCo logo">
+      <p class="modal-kicker js-service-name">StreamCo</p>
+    </div>
     <h2>Signal Lost</h2>
     <p class="modal-line" id="lose-line">Cash stayed below -$50,000 for 30 days.</p>
     <dl class="endscreen-stats" id="lose-stats"></dl>
@@ -288,14 +296,15 @@
   <div class="gate" id="gate" hidden>
     <section class="gate-panel" id="title-screen">
       <div class="logo logo-xl">
-        <span class="logo-mark" aria-hidden="true">
-          <svg viewBox="0 0 24 24" width="42" height="42" focusable="false">
-            <path fill="currentColor" d="M7.5 4.8v14.4L19.2 12 7.5 4.8z"/>
-          </svg>
-        </span>
+        <img class="brand-logo" src="./icons/logo.svg" alt="StreamCo logo">
         <span class="logo-word">StreamCo</span>
       </div>
       <p class="gate-tagline" id="title-tagline">Build a streaming empire.</p>
+      <div class="install-hint" id="install-hint" hidden>
+        <button type="button" class="reset-button" id="install-button" hidden>Install StreamCo</button>
+        <p id="install-ios" hidden>Tap Share, then Add to Home Screen</p>
+        <button type="button" class="reset-button" id="install-dismiss" aria-label="Dismiss">×</button>
+      </div>
       <div class="gate-actions">
         <button type="button" class="buy-button buy-xl" id="start-game">Start Game</button>
         <button type="button" class="buy-button buy-xl" id="continue-button" hidden>Continue</button>
@@ -499,5 +508,47 @@
   </noscript>
   <script src="./config.js"></script>
   <script src="./game.js"></script>
+  <script>
+    (function () {
+      var key = "streamco-install-dismissed";
+      var hint = document.getElementById("install-hint");
+      var button = document.getElementById("install-button");
+      var ios = document.getElementById("install-ios");
+      var dismiss = document.getElementById("install-dismiss");
+      if (!hint || !button || !ios || !dismiss) return;
+      var standalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+      var remembered = false;
+      try { remembered = localStorage.getItem(key) === "1"; } catch (err) { remembered = false; }
+      if (standalone || remembered) return;
+      var promptEvent = null;
+      window.addEventListener("beforeinstallprompt", function (event) {
+        event.preventDefault();
+        promptEvent = event;
+        button.hidden = false;
+        ios.hidden = true;
+        hint.hidden = false;
+      });
+      var agent = navigator.userAgent || "";
+      var apple = /iPhone|iPad|iPod/.test(agent);
+      var safari = apple && /Safari/.test(agent) && !/CriOS|FxiOS|EdgiOS/.test(agent);
+      if (safari) {
+        button.hidden = true;
+        ios.hidden = false;
+        hint.hidden = false;
+      }
+      button.addEventListener("click", function () {
+        if (!promptEvent) return;
+        promptEvent.prompt();
+        var choice = promptEvent.userChoice;
+        promptEvent = null;
+        if (choice && choice.then) choice.then(function () { hint.hidden = true; });
+        else hint.hidden = true;
+      });
+      dismiss.addEventListener("click", function () {
+        hint.hidden = true;
+        try { localStorage.setItem(key, "1"); } catch (err) { /* Ignore private mode. */ }
+      });
+    }());
+  </script>
 </body>
 </html>

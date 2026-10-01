@@ -21,6 +21,8 @@
 body {
   margin: 0;
   min-height: 100vh;
+  touch-action: manipulation;
+  overscroll-behavior: none;
   background:
     radial-gradient(1000px 420px at 0% -10%, rgba(229, 9, 20, 0.16), transparent 55%),
     var(--bg);
@@ -45,11 +47,14 @@ button {
   left: 0;
   right: 0;
   z-index: 20;
-  height: var(--topbar-height);
   display: flex;
   align-items: center;
   gap: 28px;
-  padding: 0 24px;
+  padding-top: env(safe-area-inset-top);
+  padding-right: calc(24px + env(safe-area-inset-right));
+  padding-bottom: 0;
+  padding-left: calc(24px + env(safe-area-inset-left));
+  height: calc(var(--topbar-height) + env(safe-area-inset-top));
   background: var(--surface);
   border-bottom: 1px solid var(--border);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
@@ -65,6 +70,15 @@ button {
 .logo-mark {
   display: flex;
   color: var(--accent);
+}
+
+.brand-logo {
+  width: 36px;
+  height: 36px;
+  max-width: 36px;
+  object-fit: contain;
+  display: block;
+  flex: none;
 }
 
 .logo-word {
@@ -230,7 +244,7 @@ button {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  padding-top: var(--topbar-height);
+  padding-top: calc(var(--topbar-height) + env(safe-area-inset-top));
 }
 
 .columns {
@@ -479,7 +493,7 @@ button {
 .credit {
   flex: none;
   margin: 0;
-  padding: 12px 16px 16px;
+  padding: 12px calc(16px + env(safe-area-inset-right)) calc(16px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
   text-align: center;
   color: var(--text-secondary);
   font-size: 12px;
@@ -503,7 +517,7 @@ button {
     height: auto;
     flex-wrap: wrap;
     align-items: flex-start;
-    padding: 14px 16px;
+    padding: calc(14px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right)) 14px calc(16px + env(safe-area-inset-left));
     gap: 16px;
   }
 
@@ -715,7 +729,7 @@ button {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 32px 20px;
+  padding: calc(32px + env(safe-area-inset-top)) calc(20px + env(safe-area-inset-right)) calc(32px + env(safe-area-inset-bottom)) calc(20px + env(safe-area-inset-left));
   background: var(--bg);
   text-align: center;
 }
@@ -1118,7 +1132,7 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 32px 16px;
+  padding: calc(32px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right)) calc(32px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
   background:
     radial-gradient(900px 420px at 50% -10%, rgba(229, 9, 20, 0.28), transparent 55%),
     rgba(11, 11, 15, 0.96);
@@ -1138,9 +1152,44 @@ button {
   margin-bottom: 8px;
 }
 
-.logo-xl .logo-mark {
-  width: 64px;
-  height: 64px;
+.logo-xl .brand-logo {
+  width: 96px;
+  height: 96px;
+  max-width: 96px;
+}
+
+.logo-end {
+  justify-content: center;
+  margin-bottom: 8px;
+}
+
+.logo-end .brand-logo {
+  width: 48px;
+  height: 48px;
+  max-width: 48px;
+}
+
+.logo-end .modal-kicker {
+  margin: 0;
+}
+
+.install-hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 16px;
+}
+
+.install-hint p {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+#install-button,
+#install-dismiss {
+  margin-left: 0;
 }
 
 .logo-xl .logo-word {
@@ -1782,6 +1831,13 @@ body.modal-open {
 }
 
 .detail-list dd { margin: 0; }
+
+button,
+.text-link,
+.modal-x {
+  min-height: 44px;
+  min-width: 44px;
+}
 
 @media (max-width: 699px) {
   .overlay { padding: 10px; }
