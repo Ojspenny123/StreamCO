@@ -53,7 +53,16 @@
       </div>
     </div>
 
-    <button type="button" class="reset-button" id="reset-button">Reset</button>
+    <div class="top-actions">
+      <div class="speeds" role="group" aria-label="Speed">
+        <button type="button" class="speed-button" id="speed-pause" aria-pressed="false">Pause</button>
+        <button type="button" class="speed-button is-on" id="speed-1" aria-pressed="true">1×</button>
+        <button type="button" class="speed-button" id="speed-2" aria-pressed="false">2×</button>
+        <button type="button" class="speed-button" id="speed-4" aria-pressed="false">4×</button>
+      </div>
+      <button type="button" class="reset-button" id="settings-button">Settings</button>
+      <button type="button" class="reset-button" id="reset-button">Reset</button>
+    </div>
   </header>
 
   <div class="app">
@@ -74,7 +83,14 @@
             <span class="logo-word js-service-name">StreamCo</span>
           </div>
           <p class="tier-name" id="tier-name">New Service</p>
+          <p class="mode-line"><span id="mode-label">Normal</span><span id="variety-note"></span></p>
           <p class="audience-split" id="audience-split" hidden></p>
+          <div class="brand-row">
+            <span class="stat-label" id="brand-label">Brand</span>
+            <div class="brand-gauge" aria-hidden="true"><div id="brand-fill"></div></div>
+            <span class="brand-value" id="brand-value" aria-labelledby="brand-label">50</span>
+          </div>
+          <div class="chips" id="effect-chips"></div>
         </div>
 
         <dl class="metrics">
@@ -96,21 +112,88 @@
           </div>
         </dl>
 
-        <div class="chart-slot">
-          <h3 class="slot-title">Subscribers</h3>
-          <canvas class="subscriber-chart" id="subscriber-chart" aria-label="Subscriber history"></canvas>
+        <div class="tabs" role="tablist">
+          <button type="button" class="tab is-on" data-tab="home" role="tab" aria-selected="true">Home</button>
+          <button type="button" class="tab" data-tab="analytics" role="tab" aria-selected="false">Analytics</button>
+          <button type="button" class="tab" data-tab="regions" role="tab" aria-selected="false">Regions</button>
+          <button type="button" class="tab" data-tab="rivals" role="tab" aria-selected="false">Rivals</button>
+          <button type="button" class="tab" data-tab="trophies" role="tab" aria-selected="false">Trophies</button>
         </div>
 
-        <div class="library-slot">
-          <h3 class="slot-title">Library</h3>
-          <p class="empty-copy" id="library-empty">No titles yet.</p>
-          <div class="posters" id="posters"></div>
+        <div class="tab-panel" id="panel-home">
+          <div class="chart-slot">
+            <h3 class="slot-title">Subscribers</h3>
+            <canvas class="subscriber-chart" id="subscriber-chart" aria-label="Subscriber history"></canvas>
+          </div>
+          <div class="library-slot">
+            <div class="slot-head">
+              <h3 class="slot-title">Library</h3>
+              <span class="trend-chip" id="trend-chip" hidden>Trending</span>
+            </div>
+            <p class="empty-copy" id="library-empty">No titles yet.</p>
+            <div class="posters" id="posters"></div>
+          </div>
+        </div>
+
+        <div class="tab-panel" id="panel-analytics" hidden>
+          <div class="chart-grid">
+            <div class="chart-slot">
+              <h3 class="slot-title">Revenue and costs</h3>
+              <canvas class="mini-chart" id="chart-revenue" aria-label="Revenue and costs for 90 days"></canvas>
+            </div>
+            <div class="chart-slot">
+              <h3 class="slot-title">Churn</h3>
+              <canvas class="mini-chart" id="chart-churn" aria-label="Churn rate over time"></canvas>
+            </div>
+            <div class="chart-slot">
+              <h3 class="slot-title">Subscribers by region</h3>
+              <canvas class="mini-chart" id="chart-regions" aria-label="Subscribers by region"></canvas>
+            </div>
+            <div class="chart-slot">
+              <h3 class="slot-title">Price sweet spot</h3>
+              <canvas class="mini-chart" id="chart-sweet" aria-label="Estimated daily profit by price"></canvas>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="content-table" id="content-table">
+              <thead>
+                <tr>
+                  <th><button type="button" data-sort="title">Title</button></th>
+                  <th><button type="button" data-sort="genre">Genre</button></th>
+                  <th><button type="button" data-sort="status">Status</button></th>
+                  <th><button type="button" data-sort="cost">Cost</button></th>
+                  <th><button type="button" data-sort="revenue">Est. daily</button></th>
+                </tr>
+              </thead>
+              <tbody id="content-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="tab-panel" id="panel-regions" hidden>
+          <div class="card-list" id="region-list"></div>
+        </div>
+
+        <div class="tab-panel" id="panel-rivals" hidden>
+          <div class="card-list" id="leaderboard"></div>
+        </div>
+
+        <div class="tab-panel" id="panel-trophies" hidden>
+          <div class="trophy-grid" id="trophy-list"></div>
         </div>
       </section>
     </main>
 
     <section class="panel event-log" aria-labelledby="log-title">
-      <h2 class="panel-title" id="log-title">Event log</h2>
+      <div class="log-head">
+        <h2 class="panel-title" id="log-title">Event log</h2>
+        <div class="filters" role="group" aria-label="Log filter">
+          <button type="button" class="filter is-on" data-filter="all">All</button>
+          <button type="button" class="filter" data-filter="money">Money</button>
+          <button type="button" class="filter" data-filter="events">Events</button>
+          <button type="button" class="filter" data-filter="rivals">Rivals</button>
+        </div>
+      </div>
       <ol id="event-log"></ol>
     </section>
 
@@ -128,9 +211,11 @@
 
   <div class="endscreen" id="win-screen" hidden>
     <p class="modal-kicker js-service-name">StreamCo</p>
-    <h2>Global Giant</h2>
+    <h2 id="win-heading">Global Giant</h2>
     <p class="modal-line" id="win-line">A million subscribers. The world is watching.</p>
     <dl class="endscreen-stats" id="win-stats"></dl>
+    <p class="score-line" id="win-score"></p>
+    <ol class="score-list" id="win-board"></ol>
     <button type="button" class="buy-button" id="win-again">Play again</button>
     <p class="credit">Created by OJ Spenny Gaming</p>
   </div>
@@ -140,9 +225,124 @@
     <h2>Signal Lost</h2>
     <p class="modal-line" id="lose-line">Cash stayed below -$50,000 for 30 days.</p>
     <dl class="endscreen-stats" id="lose-stats"></dl>
+    <p class="score-line" id="lose-score"></p>
+    <ol class="score-list" id="lose-board"></ol>
     <button type="button" class="buy-button" id="lose-again">Play again</button>
     <p class="credit">Created by OJ Spenny Gaming</p>
   </div>
+
+  <div class="endscreen start-screen" id="start-screen" hidden>
+    <p class="modal-kicker js-service-name">StreamCo</p>
+    <h2>Open the service</h2>
+    <p class="modal-line">Pick a difficulty. One real second is one day.</p>
+    <div class="difficulty-grid" id="difficulty-grid">
+      <button type="button" class="diff-card" data-difficulty="easy"><strong>Easy</strong><span>$20,000 · 2 rivals · gentler setbacks</span></button>
+      <button type="button" class="diff-card" data-difficulty="normal"><strong>Normal</strong><span>$10,000 · 3 rivals · the standard slate</span></button>
+      <button type="button" class="diff-card" data-difficulty="hard"><strong>Hard</strong><span>$6,000 · 4 rivals · harsher bad news</span></button>
+      <button type="button" class="diff-card" data-difficulty="sandbox"><strong>Sandbox</strong><span>$40,000 · no defeat · no random events</span></button>
+    </div>
+    <ol class="score-list" id="start-scores"></ol>
+    <p class="credit">Created by OJ Spenny Gaming</p>
+  </div>
+
+  <div class="overlay" id="commission-modal" hidden>
+    <div class="modal-card modal-wide" role="dialog" aria-modal="true" aria-labelledby="commission-title">
+      <p class="modal-kicker">Commission</p>
+      <h2 id="commission-title">New original</h2>
+      <p class="modal-line">Pick a genre, then a budget. Production takes days.</p>
+      <div class="pick-grid" id="genre-picks"></div>
+      <div class="pick-grid" id="budget-picks"></div>
+      <div class="modal-actions">
+        <button type="button" class="reset-button" id="commission-cancel">Cancel</button>
+        <button type="button" class="buy-button" id="commission-confirm" disabled>Start production</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay" id="event-modal" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="event-title">
+      <p class="event-emoji" id="event-emoji"></p>
+      <h2 id="event-title">Event</h2>
+      <p class="modal-line" id="event-copy"></p>
+      <div class="option-list" id="event-options"></div>
+    </div>
+  </div>
+
+  <div class="overlay" id="detail-modal" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="detail-title">
+      <p class="modal-kicker">Title</p>
+      <h2 id="detail-title">Title</h2>
+      <div id="detail-body"></div>
+      <button type="button" class="buy-button" id="detail-close">Close</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="renew-modal" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="renew-title">
+      <p class="modal-kicker">Contract</p>
+      <h2 id="renew-title">Licence ending</h2>
+      <p class="modal-line" id="renew-copy"></p>
+      <div class="modal-actions">
+        <button type="button" class="reset-button" id="renew-no">Let it go</button>
+        <button type="button" class="buy-button" id="renew-yes">Renew</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay" id="rival-modal" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="rival-title">
+      <p class="modal-kicker">Rival</p>
+      <h2 id="rival-title">Rival</h2>
+      <p class="modal-line" id="rival-blurb"></p>
+      <canvas class="mini-chart" id="rival-spark" width="360" height="100" aria-label="Rival subscriber history"></canvas>
+      <div id="rival-body"></div>
+      <button type="button" class="buy-button" id="rival-close">Close</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="weekly-modal" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="weekly-title">
+      <p class="modal-kicker">Weekly report</p>
+      <h2 id="weekly-title">30 days on the books</h2>
+      <div id="weekly-body"></div>
+      <button type="button" class="buy-button" id="weekly-close">Back to work</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="welcome-modal" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="welcome-title">
+      <p class="modal-kicker">Welcome back</p>
+      <h2 id="welcome-title">While you were out</h2>
+      <div id="welcome-body"></div>
+      <button type="button" class="buy-button" id="welcome-close">Continue</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="settings-modal" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+      <p class="modal-kicker">Settings</p>
+      <h2 id="settings-title">Settings</h2>
+      <label class="settings-row"><input type="checkbox" id="settings-animations" checked> Animations</label>
+      <p class="modal-line">Space pauses. 1, 2, and 3 set the speed.</p>
+      <div class="modal-actions">
+        <button type="button" class="reset-button" id="settings-tutorial">Reset tutorial</button>
+        <button type="button" class="reset-button" id="settings-export">Export save</button>
+        <button type="button" class="reset-button" id="settings-import">Import save</button>
+        <button type="button" class="buy-button" id="settings-close">Close</button>
+      </div>
+      <input id="import-file" type="file" accept="application/json,.json" hidden>
+    </div>
+  </div>
+
+  <div class="tutorial" id="tutorial" hidden>
+    <p id="tutorial-text"></p>
+    <div class="modal-actions">
+      <button type="button" class="reset-button" id="tutorial-skip">Skip</button>
+      <button type="button" class="buy-button" id="tutorial-next">Next</button>
+    </div>
+  </div>
+
+  <div class="toasts" id="toasts" aria-live="polite"></div>
 
   <noscript>
     <p class="noscript">StreamCo needs JavaScript to run the day-by-day simulation.</p>
