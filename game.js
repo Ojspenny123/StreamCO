@@ -719,8 +719,19 @@ function paint(view) {
   setText("revenue-value", formatMoneyPrecise(view.dailyRevenue));
   setText("costs-value", formatMoneyPrecise(view.dailyCosts));
 
-  const churnBits = `${(view.churnRate * 100).toFixed(2)}% · ${view.churnLabel}`;
-  setText("churn-value", view.bufferingChurn >= 0.001 ? `${churnBits} · buffering` : churnBits);
+  const churnEl = document.getElementById("churn-value");
+  if (churnEl) {
+    const rate = `${(view.churnRate * 100).toFixed(2)}%`;
+    const note = view.bufferingChurn >= 0.001 ? `${view.churnLabel} · buffering` : view.churnLabel;
+    churnEl.replaceChildren();
+    const rateEl = document.createElement("span");
+    rateEl.className = "churn-rate";
+    rateEl.textContent = rate;
+    const noteEl = document.createElement("span");
+    noteEl.className = "churn-note";
+    noteEl.textContent = note;
+    churnEl.append(rateEl, noteEl);
+  }
 
   const split = document.getElementById("audience-split");
   if (split) {
@@ -1051,7 +1062,9 @@ function drawChart() {
   const pad = 10;
   const points = series.map((value, index) => {
     const x = series.length === 1 ? width / 2 : pad + (index / (series.length - 1)) * (width - pad * 2);
-    const y = height - pad - ((value - min) / span) * (height - pad * 2);
+    const y = min === max
+      ? height / 2
+      : height - pad - ((value - min) / span) * (height - pad * 2);
     return [x, y];
   });
 
@@ -1069,14 +1082,22 @@ function drawChart() {
   ctx.fillStyle = gradient;
   ctx.fill();
 
+  ctx.strokeStyle = "#E50914";
+  ctx.fillStyle = "#E50914";
+  ctx.lineWidth = 2;
+  ctx.lineJoin = "round";
+  if (points.length < 2) {
+    const [x, y] = points[0];
+    ctx.beginPath();
+    ctx.arc(x, y, 3.5, 0, Math.PI * 2);
+    ctx.fill();
+    return;
+  }
   ctx.beginPath();
   points.forEach(([x, y], index) => {
     if (index === 0) ctx.moveTo(x, y);
     else ctx.lineTo(x, y);
   });
-  ctx.strokeStyle = "#E50914";
-  ctx.lineWidth = 2;
-  ctx.lineJoin = "round";
   ctx.stroke();
 }
 
