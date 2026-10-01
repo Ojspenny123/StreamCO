@@ -2517,7 +2517,7 @@ function openDetail(id) {
   list.className = "detail-list";
   const rows = [
     ["Genre", title.genre],
-    ["Status", title.status === "producing" ? "In production" : title.outcome || title.status],
+    ["Status", title.status === "producing" ? "In production" : title.outcome === "hit" ? "HIT" : title.outcome === "flop" ? "Flop" : title.outcome === "licensed" ? "Licensed" : title.status],
     ["Release day", title.releaseDay == null ? "Not yet" : `Day ${title.releaseDay}`],
     ["Freshness", `${Math.round(freshnessOf(title) * 100)}%`],
     ["Daily upkeep", formatCash(title.status === "released" ? title.upkeep : title.plannedUpkeep || 0)],
