@@ -405,6 +405,7 @@ const animators = new Map();
 const deltaTimers = new Map();
 let uiEvents = [];
 let uiBound = false;
+let animationGeneration = 0;
 
 function hasUi() {
   return typeof document !== "undefined" && !!document.getElementById("cash-value");
@@ -486,13 +487,16 @@ function animateValue(id, from, to, render) {
     return;
   }
 
+  const generation = animationGeneration;
   const duration = 180;
   const start = performance.now();
 
   function frame(now) {
+    if (generation !== animationGeneration) return;
     const t = Math.min(1, (now - start) / duration);
     const eased = 1 - Math.pow(1 - t, 3);
     render(el, from + (to - from) * eased);
+    if (generation !== animationGeneration) return;
     if (t < 1) animators.set(id, requestAnimationFrame(frame));
     else animators.delete(id);
   }
@@ -629,6 +633,7 @@ function renderTick(before, after) {
 }
 
 function resetUi() {
+  animationGeneration += 1;
   animators.forEach((frame) => cancelAnimationFrame(frame));
   animators.clear();
   deltaTimers.forEach((timer) => clearTimeout(timer));

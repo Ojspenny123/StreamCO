@@ -200,12 +200,12 @@ button {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  padding: 20px 22px 22px;
+  padding: 18px 20px;
 }
 
 .dashboard {
-  overflow: auto;
-  gap: 22px;
+  overflow: hidden;
+  gap: 12px;
 }
 
 .upgrades-body {
@@ -256,7 +256,7 @@ button {
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 12px 14px;
+  padding: 10px 12px;
 }
 
 .metric dd {
@@ -268,13 +268,22 @@ button {
 }
 
 .slot-title {
-  margin: 0 0 10px;
+  margin: 0 0 8px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
 
+.chart-slot {
+  flex: 1 1 auto;
+  min-height: 96px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 .chart-placeholder {
-  height: 180px;
+  flex: 1 1 auto;
+  min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -292,17 +301,18 @@ button {
 }
 
 .library-slot .empty-copy {
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 
 .posters {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(4, 72px);
   gap: 12px;
 }
 
 .poster-empty {
-  aspect-ratio: 2 / 3;
+  width: 72px;
+  height: 108px;
   border: 1px dashed var(--border);
   border-radius: 12px;
   background: rgba(11, 11, 15, 0.45);
@@ -404,9 +414,17 @@ button {
     overflow: visible;
   }
 
-  .metrics,
-  .posters {
+  .metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .posters {
+    grid-template-columns: repeat(4, 72px);
+  }
+
+  .poster-empty {
+    width: 72px;
+    height: 108px;
   }
 
   .event-log {
