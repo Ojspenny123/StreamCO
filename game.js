@@ -1,7 +1,7 @@
 "use strict";
 
 /**
- * Step 1: one-second game loop and the daily cash / subscriber model.
+ * StreamCo day loop, economy, and dashboard.
  * Change the service name here only.
  */
 const SERVICE_NAME = "StreamCo";
@@ -194,7 +194,7 @@ function snapshot() {
 function logIntro() {
   const view = snapshot();
   console.log(
-    `%c${SERVICE_NAME}%c console simulation. 1 real second = 1 day. ` +
+    `%c${SERVICE_NAME}%c dashboard running. 1 real second = 1 day. ` +
       `Cash ${formatCash(view.cash)}, subscribers ${formatSubscribers(view.subscribers)}, ` +
       `quality ${view.contentQuality}, price ${formatPrice(view.monthlyPrice)}. ` +
       `Growth: ${view.growthLabel} / Churn: ${view.churnLabel}. ` +
@@ -276,6 +276,7 @@ function tick(options) {
 
   const after = snapshot();
   if (shouldLog) logDay(before, after);
+  renderTick(before, after);
   if (state.status !== "playing") {
     stop();
     if (shouldLog) logOutcome();
@@ -298,6 +299,7 @@ function reset() {
   stop();
   state = createInitialState();
   logIntro();
+  resetUi();
   start();
   return snapshot();
 }
@@ -314,6 +316,7 @@ function setMonthlyPrice(price) {
   }
   state.monthlyPrice = clamp(roundCents(next), MIN_MONTHLY_PRICE, MAX_MONTHLY_PRICE);
   const view = snapshot();
+  syncView();
   console.log(
     `%c${SERVICE_NAME}%c Monthly price set to ${formatPrice(state.monthlyPrice)}. Growth: ${view.growthLabel} / Churn: ${view.churnLabel}.`,
     "color:#E50914;font-weight:700",
@@ -329,6 +332,7 @@ function setContentQuality(quality) {
     return state.contentQuality;
   }
   state.contentQuality = Math.max(0, next);
+  syncView();
   console.log(`%c${SERVICE_NAME}%c Content quality set to ${state.contentQuality}.`, "color:#E50914;font-weight:700", "color:#A0A0B0");
   return state.contentQuality;
 }
@@ -340,6 +344,7 @@ function setMarketingMultiplier(multiplier) {
     return state.marketingMultiplier;
   }
   state.marketingMultiplier = Math.max(0, next);
+  syncView();
   console.log(
     `%c${SERVICE_NAME}%c Marketing multiplier set to ${state.marketingMultiplier}.`,
     "color:#E50914;font-weight:700",
@@ -355,6 +360,7 @@ function setContentUpkeep(upkeep) {
     return state.contentUpkeep;
   }
   state.contentUpkeep = Math.max(0, roundCents(next));
+  syncView();
   console.log(
     `%c${SERVICE_NAME}%c Content upkeep set to $${state.contentUpkeep.toFixed(2)} per day.`,
     "color:#E50914;font-weight:700",
@@ -394,10 +400,267 @@ if (typeof module !== "undefined" && module.exports) {
   module.exports = api;
 }
 
+const MAX_LOG_ENTRIES = 40;
+const animators = new Map();
+const deltaTimers = new Map();
+let uiEvents = [];
+let uiBound = false;
+
+function hasUi() {
+  return typeof document !== "undefined" && !!document.getElementById("cash-value");
+}
+
+function setText(id, text) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = text;
+  return el;
+}
+
+function tierName(subscribers) {
+  if (subscribers >= 1000000) return "Global Giant";
+  if (subscribers >= 100000) return "National Contender";
+  if (subscribers >= 10000) return "Regional Streamer";
+  if (subscribers >= 1000) return "Local Player";
+  return "New Service";
+}
+
+function formatQuality(quality) {
+  if (Number.isInteger(quality)) return String(quality);
+  return quality.toFixed(1);
+}
+
+function formatMoneyPrecise(amount) {
+  const sign = amount < 0 ? "-" : "";
+  return `${sign}$${Math.abs(amount).toFixed(2)}`;
+}
+
+function prefersReducedMotion() {
+  return typeof window !== "undefined"
+    && typeof window.matchMedia === "function"
+    && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function paint(view) {
+  document.querySelectorAll(".js-service-name").forEach((el) => {
+    el.textContent = SERVICE_NAME;
+  });
+  document.title = SERVICE_NAME;
+
+  const cashEl = setText("cash-value", formatCash(view.cash));
+  if (cashEl) cashEl.classList.toggle("is-negative", view.cash < 0);
+  setText("subs-value", formatSubscribers(view.subscribers));
+  setText("day-value", view.day.toLocaleString("en-US"));
+  setText("price-value", formatPrice(view.monthlyPrice));
+  setText("price-outlook", `Growth: ${view.growthLabel} / Churn: ${view.churnLabel}`);
+  setText("tier-name", tierName(view.subscribers));
+  setText("quality-value", formatQuality(view.contentQuality));
+  setText("revenue-value", formatMoneyPrecise(view.dailyRevenue));
+  setText("costs-value", formatMoneyPrecise(view.dailyCosts));
+  setText("churn-value", `${(view.churnRate * 100).toFixed(2)}% · ${view.churnLabel}`);
+
+  const outcome = document.getElementById("outcome");
+  if (!outcome) return;
+  if (view.status === "won") {
+    outcome.hidden = false;
+    outcome.className = "outcome won";
+    outcome.textContent = `You reached ${formatSubscribers(WIN_SUBSCRIBERS)} subscribers.`;
+  } else if (view.status === "lost") {
+    outcome.hidden = false;
+    outcome.className = "outcome lost";
+    outcome.textContent = `Cash stayed below ${formatCash(LOSE_CASH)} for ${LOSE_STREAK_DAYS} days.`;
+  } else {
+    outcome.hidden = true;
+    outcome.className = "outcome";
+    outcome.textContent = "";
+  }
+}
+
+function animateValue(id, from, to, render) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const previous = animators.get(id);
+  if (previous) cancelAnimationFrame(previous);
+
+  if (prefersReducedMotion() || from === to) {
+    render(el, to);
+    return;
+  }
+
+  const duration = 180;
+  const start = performance.now();
+
+  function frame(now) {
+    const t = Math.min(1, (now - start) / duration);
+    const eased = 1 - Math.pow(1 - t, 3);
+    render(el, from + (to - from) * eased);
+    if (t < 1) animators.set(id, requestAnimationFrame(frame));
+    else animators.delete(id);
+  }
+
+  animators.set(id, requestAnimationFrame(frame));
+}
+
+function renderCash(el, value) {
+  el.textContent = formatCash(value);
+  el.classList.toggle("is-negative", value < 0);
+}
+
+function renderSubscribers(el, value) {
+  el.textContent = formatSubscribers(value);
+}
+
+function flashStat(id, direction) {
+  const el = document.getElementById(id);
+  if (!el || direction === 0) return;
+  el.classList.remove("flash-up", "flash-down");
+  void el.offsetWidth;
+  el.classList.add(direction > 0 ? "flash-up" : "flash-down");
+  window.setTimeout(() => {
+    el.classList.remove("flash-up", "flash-down");
+  }, 700);
+}
+
+function showDelta(id, text, tone) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = text;
+  el.classList.remove("up", "down");
+  if (tone) el.classList.add(tone);
+  const existing = deltaTimers.get(id);
+  if (existing) window.clearTimeout(existing);
+  deltaTimers.set(id, window.setTimeout(() => {
+    el.textContent = "";
+    el.classList.remove("up", "down");
+    deltaTimers.delete(id);
+  }, 900));
+}
+
+function renderLog() {
+  const list = document.getElementById("event-log");
+  if (!list) return;
+  const stickToTop = list.scrollTop < 8;
+  list.replaceChildren();
+  uiEvents.forEach((event) => {
+    const item = document.createElement("li");
+    const day = document.createElement("span");
+    day.className = "log-day";
+    day.textContent = `Day ${event.day}: `;
+    item.append(day);
+    event.parts.forEach((part) => {
+      const span = document.createElement("span");
+      span.className = `log-part ${part.tone}`;
+      span.textContent = part.text;
+      item.append(span);
+    });
+    list.append(item);
+  });
+  if (stickToTop) list.scrollTop = 0;
+}
+
+function pushEvent(day, parts) {
+  uiEvents.unshift({ day, parts });
+  if (uiEvents.length > MAX_LOG_ENTRIES) uiEvents.length = MAX_LOG_ENTRIES;
+  renderLog();
+}
+
+function openingEvent() {
+  return {
+    day: 0,
+    parts: [{
+      text: `${SERVICE_NAME} is open. ${formatSubscribers(STARTING_SUBSCRIBERS)} subscribers, ${formatCash(STARTING_CASH)} cash.`,
+      tone: "neutral",
+    }],
+  };
+}
+
+function syncView() {
+  if (!hasUi()) return;
+  paint(snapshot());
+}
+
+function renderTick(before, after) {
+  if (!hasUi()) return;
+  paint(after);
+
+  const cashEl = document.getElementById("cash-value");
+  const subsEl = document.getElementById("subs-value");
+  if (cashEl) renderCash(cashEl, before.cash);
+  if (subsEl) renderSubscribers(subsEl, before.subscribers);
+
+  animateValue("cash-value", before.cash, after.cash, renderCash);
+  animateValue("subs-value", before.subscribers, after.subscribers, renderSubscribers);
+  flashStat("cash-value", after.cash - before.cash);
+  flashStat("subs-value", after.subscribers - before.subscribers);
+
+  if (before.netCash !== 0) {
+    showDelta("cash-delta", formatSignedMoney(before.netCash), before.netCash > 0 ? "up" : "down");
+  }
+  if (before.netSubscribers !== 0) {
+    showDelta(
+      "subs-delta",
+      formatSignedNumber(before.netSubscribers, 2),
+      before.netSubscribers > 0 ? "up" : "down"
+    );
+  }
+
+  const parts = [
+    {
+      text: `${formatSignedNumber(before.netSubscribers, 2)} subscribers`,
+      tone: before.netSubscribers < 0 ? "down" : "up",
+    },
+    { text: ", ", tone: "neutral" },
+    {
+      text: `${formatSignedMoney(before.netCash)} cash`,
+      tone: before.netCash < 0 ? "down" : "up",
+    },
+  ];
+  if (after.daysBelowLoseLine > 0) {
+    parts.push({
+      text: ` Debt streak ${after.daysBelowLoseLine}/${LOSE_STREAK_DAYS}.`,
+      tone: "warn",
+    });
+  }
+  if (after.status === "won") {
+    parts.push({ text: " Global Giant.", tone: "up" });
+  } else if (after.status === "lost") {
+    parts.push({ text: " The service closes.", tone: "down" });
+  }
+  pushEvent(after.day, parts);
+}
+
+function resetUi() {
+  animators.forEach((frame) => cancelAnimationFrame(frame));
+  animators.clear();
+  deltaTimers.forEach((timer) => clearTimeout(timer));
+  deltaTimers.clear();
+  uiEvents = [openingEvent()];
+  if (!hasUi()) return;
+  paint(snapshot());
+  renderLog();
+  const cashDelta = document.getElementById("cash-delta");
+  const subsDelta = document.getElementById("subs-delta");
+  if (cashDelta) cashDelta.textContent = "";
+  if (subsDelta) subsDelta.textContent = "";
+}
+
+function mountUi() {
+  if (!hasUi()) return;
+  if (!uiBound) {
+    const resetButton = document.getElementById("reset-button");
+    if (resetButton) {
+      resetButton.addEventListener("click", () => {
+        const confirmed = window.confirm(`Reset ${SERVICE_NAME}? The current run will be lost.`);
+        if (confirmed) reset();
+      });
+    }
+    uiBound = true;
+  }
+  resetUi();
+}
+
 if (typeof document !== "undefined") {
   document.title = SERVICE_NAME;
-  const nameEl = document.getElementById("service-name");
-  if (nameEl) nameEl.textContent = SERVICE_NAME;
+  mountUi();
   logIntro();
   start();
 }

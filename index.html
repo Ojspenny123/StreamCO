@@ -10,17 +10,122 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <main class="boot">
-    <p class="boot-kicker">Console simulation</p>
-    <h1 id="service-name">StreamCo</h1>
-    <p class="boot-copy">
-      The day-by-day simulation is running in the browser console.
-      Open developer tools to watch cash, subscribers, churn, and revenue update once per second.
-    </p>
-    <p class="boot-hint">
-      Try <code>StreamCo.getState()</code> or <code>StreamCo.setMonthlyPrice(8)</code>.
-    </p>
-  </main>
+  <header class="topbar">
+    <div class="logo">
+      <span class="logo-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="22" height="22" focusable="false">
+          <path fill="currentColor" d="M7.5 4.8v14.4L19.2 12 7.5 4.8z"/>
+        </svg>
+      </span>
+      <span class="logo-word js-service-name">StreamCo</span>
+    </div>
+
+    <div class="top-stats">
+      <div class="stat">
+        <div class="stat-head">
+          <span class="stat-label" id="cash-label">Cash</span>
+          <span class="stat-delta" id="cash-delta"></span>
+        </div>
+        <span class="stat-value" id="cash-value" aria-labelledby="cash-label">$10,000</span>
+      </div>
+      <div class="stat">
+        <div class="stat-head">
+          <span class="stat-label" id="subs-label">Subscribers</span>
+          <span class="stat-delta" id="subs-delta"></span>
+        </div>
+        <span class="stat-value" id="subs-value" aria-labelledby="subs-label">100</span>
+      </div>
+      <div class="stat">
+        <div class="stat-head">
+          <span class="stat-label" id="day-label">Day</span>
+        </div>
+        <span class="stat-value" id="day-value" aria-labelledby="day-label">0</span>
+      </div>
+      <div class="stat price-stat">
+        <div class="stat-head">
+          <span class="stat-label" id="price-label">Monthly price</span>
+        </div>
+        <span class="stat-value" id="price-value" aria-labelledby="price-label">$5.00</span>
+        <span class="price-outlook" id="price-outlook">Growth: Medium / Churn: Low</span>
+      </div>
+    </div>
+
+    <button type="button" class="reset-button" id="reset-button">Reset</button>
+  </header>
+
+  <div class="app">
+    <main class="columns">
+      <section class="panel upgrades" aria-labelledby="upgrades-title">
+        <h2 class="panel-title" id="upgrades-title">Upgrades</h2>
+        <div class="upgrades-body">
+          <p class="empty-copy">No upgrades available yet.</p>
+        </div>
+      </section>
+
+      <section class="panel dashboard" aria-labelledby="tier-name">
+        <div class="hero">
+          <div class="logo logo-lg">
+            <span class="logo-mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="28" height="28" focusable="false">
+                <path fill="currentColor" d="M7.5 4.8v14.4L19.2 12 7.5 4.8z"/>
+              </svg>
+            </span>
+            <span class="logo-word js-service-name">StreamCo</span>
+          </div>
+          <p class="tier-name" id="tier-name">New Service</p>
+          <p class="outcome" id="outcome" hidden></p>
+        </div>
+
+        <dl class="metrics">
+          <div class="metric">
+            <dt>Content quality</dt>
+            <dd id="quality-value">1</dd>
+          </div>
+          <div class="metric">
+            <dt>Daily revenue</dt>
+            <dd id="revenue-value">$16.67</dd>
+          </div>
+          <div class="metric">
+            <dt>Daily costs</dt>
+            <dd id="costs-value">$8.40</dd>
+          </div>
+          <div class="metric">
+            <dt>Churn</dt>
+            <dd id="churn-value">0.33% · Low</dd>
+          </div>
+        </dl>
+
+        <div class="chart-slot">
+          <h3 class="slot-title">Subscribers</h3>
+          <div class="chart-placeholder">
+            <p>The subscriber graph will appear here.</p>
+          </div>
+        </div>
+
+        <div class="library-slot">
+          <h3 class="slot-title">Library</h3>
+          <p class="empty-copy">No titles yet.</p>
+          <div class="posters">
+            <div class="poster-empty"></div>
+            <div class="poster-empty"></div>
+            <div class="poster-empty"></div>
+            <div class="poster-empty"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <section class="panel event-log" aria-labelledby="log-title">
+      <h2 class="panel-title" id="log-title">Event log</h2>
+      <ol id="event-log"></ol>
+    </section>
+
+    <footer class="credit">Created by OJ Spenny Gaming</footer>
+  </div>
+
+  <noscript>
+    <p class="noscript">StreamCo needs JavaScript to run the day-by-day simulation.</p>
+  </noscript>
   <script src="game.js"></script>
 </body>
 </html>

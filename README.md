@@ -4,9 +4,15 @@ A single-page streaming-service tycoon. Plain HTML, CSS, and vanilla JavaScript.
 
 The service name lives in one place: `SERVICE_NAME` at the top of `game.js`.
 
-## Step 1 — console simulation
+## Play
 
-This step runs the game loop and the money / subscriber math. There is no dashboard yet. Open `index.html` in a browser and watch the developer console. One real second is one in-game day.
+Open `index.html` in a browser. One real second is one in-game day. The top bar shows cash, subscribers, the day, and the monthly price. Cash turns red when it is negative. Rising stats flash green and show a `+` change. Falling stats flash red and show a `-` change.
+
+Reset asks for confirmation, then starts a new run. The footer reads "Created by OJ Spenny Gaming".
+
+The price slider, upgrade cards, subscriber graph, and poster library are later steps. Until then, price, quality, marketing, and upkeep can still be changed from the console.
+
+## Economy
 
 Starting position:
 
@@ -47,7 +53,6 @@ StreamCo.reset()
 
 ## Later steps
 
-2. Dashboard layout wired to these stats
 3. Upgrades and the 15% cost increase
 4. Price slider and churn
 5. Milestones, win/lose screens, save/load
