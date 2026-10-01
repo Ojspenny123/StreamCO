@@ -45,8 +45,11 @@
         <div class="stat-head">
           <span class="stat-label" id="price-label">Monthly price</span>
         </div>
-        <span class="stat-value" id="price-value" aria-labelledby="price-label">$5.00</span>
-        <span class="price-outlook" id="price-outlook">Growth: Medium / Churn: Low</span>
+        <div class="price-row">
+          <span class="stat-value" id="price-value" aria-labelledby="price-label">$5.00</span>
+          <input class="price-slider" id="price-slider" type="range" min="2" max="20" step="0.5" value="5" aria-labelledby="price-label">
+        </div>
+        <span class="price-outlook" id="price-outlook">Growth: Medium / Churn: Medium</span>
       </div>
     </div>
 
@@ -57,9 +60,7 @@
     <main class="columns">
       <section class="panel upgrades" aria-labelledby="upgrades-title">
         <h2 class="panel-title" id="upgrades-title">Upgrades</h2>
-        <div class="upgrades-body">
-          <p class="empty-copy">No upgrades available yet.</p>
-        </div>
+        <div class="upgrades-body" id="upgrade-list"></div>
       </section>
 
       <section class="panel dashboard" aria-labelledby="tier-name">
@@ -73,7 +74,7 @@
             <span class="logo-word js-service-name">StreamCo</span>
           </div>
           <p class="tier-name" id="tier-name">New Service</p>
-          <p class="outcome" id="outcome" hidden></p>
+          <p class="audience-split" id="audience-split" hidden></p>
         </div>
 
         <dl class="metrics">
@@ -91,26 +92,19 @@
           </div>
           <div class="metric">
             <dt>Churn</dt>
-            <dd id="churn-value">0.33% · Low</dd>
+            <dd id="churn-value">0.58% · Medium · buffering</dd>
           </div>
         </dl>
 
         <div class="chart-slot">
           <h3 class="slot-title">Subscribers</h3>
-          <div class="chart-placeholder">
-            <p>The subscriber graph will appear here.</p>
-          </div>
+          <canvas class="subscriber-chart" id="subscriber-chart" aria-label="Subscriber history"></canvas>
         </div>
 
         <div class="library-slot">
           <h3 class="slot-title">Library</h3>
-          <p class="empty-copy">No titles yet.</p>
-          <div class="posters">
-            <div class="poster-empty"></div>
-            <div class="poster-empty"></div>
-            <div class="poster-empty"></div>
-            <div class="poster-empty"></div>
-          </div>
+          <p class="empty-copy" id="library-empty">No titles yet.</p>
+          <div class="posters" id="posters"></div>
         </div>
       </section>
     </main>
@@ -121,6 +115,33 @@
     </section>
 
     <footer class="credit">Created by OJ Spenny Gaming</footer>
+  </div>
+
+  <div class="overlay" id="milestone-modal" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="milestone-title">
+      <p class="modal-kicker">Milestone</p>
+      <h2 id="milestone-title">Local Player</h2>
+      <p class="modal-line" id="milestone-line"></p>
+      <button type="button" class="buy-button" id="milestone-continue">Continue</button>
+    </div>
+  </div>
+
+  <div class="endscreen" id="win-screen" hidden>
+    <p class="modal-kicker js-service-name">StreamCo</p>
+    <h2>Global Giant</h2>
+    <p class="modal-line" id="win-line">A million subscribers. The world is watching.</p>
+    <dl class="endscreen-stats" id="win-stats"></dl>
+    <button type="button" class="buy-button" id="win-again">Play again</button>
+    <p class="credit">Created by OJ Spenny Gaming</p>
+  </div>
+
+  <div class="endscreen" id="lose-screen" hidden>
+    <p class="modal-kicker js-service-name">StreamCo</p>
+    <h2>Signal Lost</h2>
+    <p class="modal-line" id="lose-line">Cash stayed below -$50,000 for 30 days.</p>
+    <dl class="endscreen-stats" id="lose-stats"></dl>
+    <button type="button" class="buy-button" id="lose-again">Play again</button>
+    <p class="credit">Created by OJ Spenny Gaming</p>
   </div>
 
   <noscript>
