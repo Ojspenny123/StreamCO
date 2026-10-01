@@ -108,6 +108,7 @@ const RIVAL_ROSTER = [
 const UPGRADES = [
   { id: "commission", group: "Content", name: "Content desk", effect: "Acquire a title or create an original", action: "commission", icon: "sitcom" },
   { id: "movies", group: "Content", name: "Movie library", effect: "A different film bundle each time", action: "library", icon: "movies" },
+  { id: "expand", group: "Content", name: "Expand library", effect: "+4 title slots", cost: (CONFIG.library && CONFIG.library.expandCost) || 12000, icon: "movies", event: "The library has more room." },
   { id: "football", group: "Content", name: "Football Package", effect: "90-day sports deal", action: "license", icon: "sports" },
   { id: "basketball", group: "Content", name: "Basketball Package", effect: "90-day sports deal", action: "license", icon: "sports" },
   { id: "tennis", group: "Content", name: "Tennis Package", effect: "90-day sports deal", action: "license", icon: "sports" },
@@ -178,6 +179,8 @@ let pendingRenewId = null;
 let logFilter = "all";
 let currentTab = "home";
 let tableSort = { key: "revenue", dir: -1 };
+let libraryFilter = "all";
+let librarySort = "newest";
 let tutorialIndex = -1;
 let settings = { animations: true, tutorialDismissed: false, skipGuide: false };
 let draft = { difficulty: "normal", sandbox: false, name: "" };
@@ -402,14 +405,32 @@ function releasedGenres() {
   return genres;
 }
 
+function diminishFactor(index, table) {
+  const list = table && table.length ? table : [1, 0.8, 0.65, 0.5, 0.4, 0.32];
+  if (index < list.length) return list[index];
+  return list[list.length - 1] * Math.pow(0.85, index - list.length + 1);
+}
+
 function currentQuality() {
   if (qualityOverride != null) return qualityOverride;
-  let quality = 1;
+  const rules = econ();
+  const groups = {};
   titles.forEach((title) => {
-    quality += titleContribution(title);
+    const value = titleContribution(title);
+    if (!value) return;
+    const key = title.genre || "Other";
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(value);
+  });
+  let quality = 1;
+  Object.keys(groups).forEach((key) => {
+    const table = key === "Sport" ? (rules.sportsDiminish || rules.diminish) : rules.diminish;
+    groups[key].sort((a, b) => b - a);
+    groups[key].forEach((value, index) => {
+      quality += value * diminishFactor(index, table);
+    });
   });
   const count = releasedGenres().size;
-  const rules = econ();
   if (count >= 5) quality *= rules.variety5 || 1.2;
   else if (count >= 3) quality *= rules.variety3 || 1.1;
   const damp = rules.qualityDamp || 1;
@@ -434,9 +455,14 @@ function currentMarketing() {
     if (upgrade.marketing) marketing += upgrade.marketing * ownedCount(upgrade.id);
   });
   if (!effects.some((effect) => effect.sportsPause)) {
+    const boosts = [];
     titles.forEach((title) => {
       const license = title.licenseId && LICENSES[title.licenseId];
-      if (license && license.marketing && title.status === "released" && title.contractDays > 0) marketing += license.marketing;
+      if (license && license.marketing && title.status === "released" && title.contractDays > 0) boosts.push(license.marketing);
+    });
+    boosts.sort((a, b) => b - a);
+    boosts.forEach((value, index) => {
+      marketing += value * diminishFactor(index, econ().sportsDiminish);
     });
   }
   return Math.max(0.4, marketing);
@@ -858,6 +884,10 @@ function commission(genre, tierId) {
   if (state.status !== "playing") return false;
   const budget = BUDGETS[tierId];
   if (!budget || !GENRES.includes(genre)) return false;
+  if (libraryFull()) {
+    toast("The library is full. Expand it to add more.");
+    return false;
+  }
   if (!trySpend(budget.cost)) return false;
   clearOverrides();
   const title = makeTitle({
@@ -879,10 +909,35 @@ function commission(genre, tierId) {
   return true;
 }
 
+function librarySlots() {
+  const rules = CONFIG.library || {};
+  return (rules.slots || 12) + ownedCount("expand") * (rules.expandSlots || 4);
+}
+
+function slotsUsed() {
+  return titles.filter((title) => title.status === "released" || title.status === "producing").length;
+}
+
+function libraryFull() {
+  return slotsUsed() >= librarySlots();
+}
+
+function sportsLive() {
+  return titles.filter((title) => title.genre === "Sport" && title.kind === "licensed" && title.status === "released" && title.contractDays > 0);
+}
+
+function catalogCost(id) {
+  const def = LICENSES[id];
+  if (!def) return 0;
+  const generation = state.licenseGeneration[id] || 0;
+  return Math.round(def.cost * Math.pow(CONFIG.renewRise || 1.2, generation));
+}
+
 function licenseCost(id) {
   const def = LICENSES[id];
-  const generation = state.licenseGeneration[id] || 0;
-  return Math.round(def.cost * Math.pow(1.2, generation));
+  let cost = catalogCost(id);
+  if (def && def.genre === "Sport") cost = Math.round(cost * Math.pow(econ().sportsCostStep || 1.25, sportsLive().length));
+  return cost;
 }
 
 function activeLicense(id) {
@@ -905,6 +960,10 @@ function signLicense(id, silent) {
   if (state.status !== "playing" && !silent) return false;
   const def = LICENSES[id];
   if (!def || activeLicense(id)) return false;
+  if (libraryFull()) {
+    toast("The library is full. Expand it to add more.");
+    return false;
+  }
   const cost = licenseCost(id);
   if (!trySpend(cost)) return false;
   clearOverrides();
@@ -1098,8 +1157,14 @@ function dropLicense(id) {
 }
 
 function renewalCost(title) {
-  const base = title.licenseId ? licenseCost(title.licenseId) : Math.round((title.cost || 1000) * (CONFIG.renewRise || 1.2));
-  return Math.round(base * upkeepScale(paidSubscribers()));
+  const base = title.licenseId ? catalogCost(title.licenseId) : Math.round((title.cost || 1000) * (CONFIG.renewRise || 1.2));
+  let cost = Math.round(base * upkeepScale(paidSubscribers()));
+  if (title.genre === "Sport") {
+    const ordered = sportsLive().slice().sort((a, b) => (a.releaseDay || 0) - (b.releaseDay || 0));
+    const rank = Math.max(0, ordered.findIndex((item) => item.id === title.id));
+    cost = Math.round(cost * Math.pow(econ().sportsRenewStep || 1.35, rank));
+  }
+  return cost;
 }
 
 function offerRenewal(title) {
@@ -1120,13 +1185,21 @@ function offerRenewal(title) {
 }
 
 function advanceContracts() {
+  const due = [];
   titles.forEach((title) => {
     if (title.kind !== "licensed" || title.status !== "released") return;
     if (pendingRenew.has(title.id)) return;
     title.contractDays -= 1;
-    if (title.contractDays === 10) offerRenewal(title);
+    if (title.contractDays === 10) due.push(title);
     else if (title.contractDays <= 0) expireLicense(title);
   });
+  if (!due.length) return;
+  if (simOffline || !hasUi()) {
+    due.forEach(offerRenewal);
+    return;
+  }
+  due.forEach((title) => pendingRenew.add(title.id));
+  enqueuePrompt({ type: "renewals", ids: due.map((title) => title.id) });
 }
 
 function driftTrends() {
@@ -2006,7 +2079,7 @@ function pushEvent(day, parts, category) {
 
 function serialize() {
   return {
-    version: 3,
+    version: 4,
     state,
     owned,
     titles,
@@ -2042,6 +2115,36 @@ function clearSave() {
   }
 }
 
+function ensureLegacyDeals() {
+  const addLegacy = (id) => {
+    const def = LICENSES[id];
+    if (!def || titles.some((title) => title.licenseId === id)) return;
+    titles.push({
+      id: `t${titleSerial}`,
+      name: def.title || def.name,
+      genre: def.genre,
+      kind: "licensed",
+      tier: "license",
+      status: "released",
+      quality: def.quality,
+      upkeep: def.upkeep,
+      cost: def.cost,
+      outcome: "licensed",
+      releaseDay: state.day || 0,
+      contractDays: def.days,
+      contractLength: def.days,
+      licenseId: id,
+    });
+    titleSerial += 1;
+    state.licenseGeneration[id] = Math.max(1, state.licenseGeneration[id] || 0);
+  };
+  if (owned.movies) addLegacy("movies");
+  if (owned.sports) {
+    addLegacy("sports");
+    state.sportsSigned = true;
+  }
+}
+
 function applyLoaded(data) {
   state = data.state;
   state.regions = state.regions || createRegions();
@@ -2063,7 +2166,7 @@ function applyLoaded(data) {
   state.priceAnchor = Number.isFinite(state.priceAnchor) ? state.priceAnchor : state.monthlyPrice;
   state.adTier = !!state.adTier;
   state.aListCast = state.aListCast || 0;
-  if (data.version && data.version < 3) state.migratedFrom = data.version;
+  if (!data.version || data.version < 4) state.migratedFrom = data.version || 1;
   owned = { ...emptyOwned(), ...(data.owned || {}) };
   titles = Array.isArray(data.titles) ? data.titles : [];
   rivals = Array.isArray(data.rivals) ? data.rivals : createRivals(difficulty());
@@ -2073,6 +2176,7 @@ function applyLoaded(data) {
   milestonesSeen = new Set(data.milestones || []);
   achievements = new Set(data.achievements || []);
   titleSerial = data.titleSerial || titles.length + 1;
+  if (!data.version || data.version < 4) ensureLegacyDeals();
   uiEvents = Array.isArray(data.events) && data.events.length ? data.events.slice(0, MAX_LOG_ENTRIES) : [openingEvent()];
   MILESTONES.forEach((milestone) => {
     if (paidSubscribers() >= milestone.at) milestonesSeen.add(milestone.id);
@@ -2267,7 +2371,8 @@ function pumpPrompts() {
   stop();
   const prompt = promptQueue.shift();
   if (prompt.type === "event") openEvent(prompt.event);
-  else if (prompt.type === "renew") openRenew(prompt.titleId, prompt.cost);
+  else if (prompt.type === "renew") openRenewals([prompt.titleId]);
+  else if (prompt.type === "renewals") openRenewals(prompt.ids);
   else if (prompt.type === "weekly") openWeekly(prompt.report);
   else if (prompt.type === "milestone") openMilestone(prompt.milestone);
   else if (prompt.type === "review") openReview(prompt);
@@ -2281,6 +2386,35 @@ function dismissBlock() {
   });
   pumpPrompts();
 }
+
+function topOverlay() {
+  if (!hasUi()) return null;
+  const nodes = Array.from(document.querySelectorAll(".overlay")).filter((el) => !el.hidden);
+  return nodes.length ? nodes[nodes.length - 1] : null;
+}
+
+function closeOverlay(overlay) {
+  if (!overlay) return;
+  const id = overlay.id;
+  if (id === "commission-modal") closeCommission();
+  else if (id === "detail-modal" || id === "rival-modal") {
+    overlay.hidden = true;
+    releaseClock();
+  } else if (id === "settings-modal") closeSettings();
+  else if (id === "welcome-modal") {
+    overlay.hidden = true;
+    welcomeHold = false;
+    start();
+  } else if (id === "event-modal" || id === "renew-modal" || id === "weekly-modal" || id === "milestone-modal") dismissBlock();
+}
+
+function syncModalLock() {
+  if (typeof document === "undefined" || !document.body) return;
+  const open = Array.from(document.querySelectorAll(".overlay")).some((el) => !el.hidden);
+  document.body.classList.toggle("modal-open", open);
+}
+
+const overlayObserver = typeof MutationObserver === "undefined" ? null : new MutationObserver(syncModalLock);
 
 function openMilestone(milestone) {
   setText("milestone-title", milestone.name);
@@ -2316,16 +2450,51 @@ function openEvent(event) {
   document.getElementById("event-modal").hidden = false;
 }
 
-function openRenew(titleId, cost) {
-  const title = titles.find((item) => item.id === titleId);
-  pendingRenewId = titleId;
-  setText("renew-title", title ? title.name : "Licence");
-  setText("renew-copy", `${title ? title.name : "This licence"} has 10 days left. Renewing costs ${formatCash(cost)}. Letting it go removes its quality.`);
-  const yes = document.getElementById("renew-yes");
-  const kind = payKind(cost);
-  yes.disabled = kind === "over";
-  yes.textContent = kind === "over" ? "Over credit limit" : kind === "credit" ? `Renew on credit ${formatCash(cost)}` : `Renew ${formatCash(cost)}`;
-  document.getElementById("renew-modal").hidden = false;
+function openRenewals(ids) {
+  const root = document.getElementById("renew-list");
+  const modal = document.getElementById("renew-modal");
+  if (!root || !modal) return;
+  setText("renew-title", ids.length > 1 ? "Renewals due" : "Renewal due");
+  root.replaceChildren();
+  ids.forEach((id) => {
+    const title = titles.find((item) => item.id === id);
+    if (!title || title.status !== "released") return;
+    const row = document.createElement("div");
+    row.className = "renew-row";
+    const copy = document.createElement("p");
+    const cost = renewalCost(title);
+    const kind = payKind(cost);
+    copy.textContent = `${title.name} · ${Math.max(0, title.contractDays)} days · ${formatCash(title.upkeep || 0)}/day · renew ${formatCash(cost)}`;
+    const actions = document.createElement("div");
+    actions.className = "modal-actions";
+    const keep = document.createElement("button");
+    keep.type = "button";
+    keep.className = kind === "credit" ? "buy-button buy-credit" : "buy-button";
+    keep.disabled = kind === "over";
+    keep.textContent = kind === "over" ? "Over credit limit" : kind === "credit" ? "Renew on credit" : "Renew";
+    keep.addEventListener("click", () => {
+      if (!renewTitle(id)) return;
+      row.remove();
+      if (!root.children.length) dismissBlock();
+    });
+    const drop = document.createElement("button");
+    drop.type = "button";
+    drop.className = "reset-button";
+    drop.textContent = "Let go";
+    drop.addEventListener("click", () => {
+      dropLicense(id);
+      row.remove();
+      if (!root.children.length) dismissBlock();
+    });
+    actions.append(keep, drop);
+    row.append(copy, actions);
+    root.append(row);
+  });
+  if (!root.children.length) {
+    dismissBlock();
+    return;
+  }
+  modal.hidden = false;
 }
 
 function openWeekly(report) {
@@ -2845,13 +3014,15 @@ function updateUpgradeCards(view) {
     let cost = upgrade.action === "commission" ? 0 : upgradeCost(upgrade);
     const live = upgrade.action === "license" && activeLicense(upgrade.id);
     const soldOut = upgrade.action === "library" && !nextMoviePack();
-    const kind = upgrade.action === "commission" || live || soldOut ? "cash" : payKind(cost);
-    const blocked = view.status !== "playing" || live || soldOut || kind === "over";
+    const needsSlot = (upgrade.action === "license" || upgrade.action === "library") && !live && !soldOut && libraryFull();
+    const kind = upgrade.action === "commission" || live || soldOut || needsSlot ? "cash" : payKind(cost);
+    const blocked = view.status !== "playing" || live || soldOut || needsSlot || kind === "over";
     card.classList.toggle("is-unaffordable", blocked && upgrade.action !== "commission");
     const costEl = card.querySelector(".upgrade-cost");
     if (costEl) {
       const next = upgrade.action === "library" ? nextMoviePack() : null;
       if (upgrade.action === "commission") costEl.textContent = "Acquire or create";
+      else if (needsSlot) costEl.textContent = `${slotsUsed()} / ${librarySlots()} slots`;
       else if (live || soldOut) costEl.textContent = "Owned";
       else if (next) costEl.textContent = `${next.name} · ${formatCash(cost)} · after ${formatCash(state.cash - cost)}`;
       else costEl.textContent = `${formatCash(cost)} · after ${formatCash(state.cash - cost)}`;
@@ -2867,6 +3038,7 @@ function updateUpgradeCards(view) {
       button.classList.toggle("buy-credit", kind === "credit" && !live && !soldOut);
       if (upgrade.action === "commission") button.textContent = "Open";
       else if (live || soldOut) button.textContent = "Owned";
+      else if (needsSlot) button.textContent = "Library full";
       else if (kind === "over") button.textContent = "Over credit limit";
       else if (kind === "credit") button.textContent = "Buy on credit";
       else button.textContent = "Buy";
@@ -2874,12 +3046,38 @@ function updateUpgradeCards(view) {
   });
 }
 
+function titleBucket(title) {
+  if (title.genre === "Sport") return "sports";
+  if (title.kind === "original") return "originals";
+  if (title.series || title.mediaType === "tv") return "series";
+  return "movies";
+}
+
+function titleScore(title) {
+  if (title.critic || title.audience) return (title.critic || 0) + (title.audience || 0);
+  return Math.round((title.tmdbVote || 0) * 10);
+}
+
 function renderLibrary() {
   const root = document.getElementById("posters");
   const empty = document.getElementById("library-empty");
+  const meta = document.getElementById("library-meta");
   if (!root) return;
-  const visible = titles.filter((title) => title.status === "producing" || title.status === "released");
-  if (empty) empty.hidden = visible.length > 0;
+  const active = titles.filter((title) => title.status === "producing" || title.status === "released");
+  const expiring = active.filter((title) => title.kind === "licensed" && title.contractDays > 0 && title.contractDays <= 10);
+  const upkeep = active.reduce((sum, title) => sum + (title.status === "released" ? title.upkeep || 0 : 0), 0);
+  if (meta) meta.textContent = `${slotsUsed()} / ${librarySlots()} slots · upkeep ${formatCash(upkeep)}/day · ${expiring.length} expiring soon`;
+  let visible = active.filter((title) => libraryFilter === "all" || titleBucket(title) === libraryFilter);
+  visible.sort((a, b) => {
+    if (librarySort === "expiring") return (a.kind === "licensed" ? a.contractDays : 9999) - (b.kind === "licensed" ? b.contractDays : 9999);
+    if (librarySort === "scores") return titleScore(b) - titleScore(a);
+    if (librarySort === "upkeep") return (b.upkeep || 0) - (a.upkeep || 0);
+    return (b.releaseDay || state.day) - (a.releaseDay || state.day);
+  });
+  if (empty) {
+    empty.hidden = visible.length > 0;
+    empty.textContent = active.length ? "Nothing in this filter." : "No titles yet.";
+  }
   root.replaceChildren();
   visible.forEach((title) => {
     const tile = document.createElement("article");
@@ -2895,8 +3093,15 @@ function renderLibrary() {
       tile.append(img);
     }
     if (title.status === "producing") tile.classList.add("is-producing");
+    const soon = title.kind === "licensed" && title.contractDays > 0 && title.contractDays <= 10;
+    if (soon) {
+      const badge = document.createElement("span");
+      badge.className = "poster-badge expiring";
+      badge.textContent = `${title.contractDays}d`;
+      tile.append(badge);
+    }
     const tag = title.outcome === "hit" ? "HIT!" : title.outcome === "flop" ? "FLOP" : title.outcome === "darling" ? "DARLING" : title.outcome === "guilty" ? "GUILTY" : "";
-    if (tag) {
+    if (tag && !soon) {
       const badge = document.createElement("span");
       badge.className = `poster-badge ${title.outcome === "flop" ? "flop" : "hit"}`;
       badge.textContent = tag;
@@ -2905,27 +3110,14 @@ function renderLibrary() {
     const name = document.createElement("p");
     name.className = "poster-title";
     name.textContent = title.name;
-    const meta = document.createElement("p");
-    meta.className = "poster-genre";
-    if (title.status === "producing") meta.textContent = `${title.genre} · ${Math.max(0, title.daysLeft)}d`;
-    else if (title.kind === "licensed") meta.textContent = `${title.genre} · ${Math.max(0, title.contractDays)}d`;
-    else meta.textContent = title.critic ? `${title.genre} · ${title.critic}/${title.audience}` : title.genre;
-    tile.append(name, meta);
-    if (title.status === "producing" && title.totalDays) {
-      const bar = document.createElement("div");
-      bar.className = "progress";
-      const span = document.createElement("span");
-      span.style.width = `${clamp((1 - title.daysLeft / title.totalDays) * 100, 0, 100)}%`;
-      bar.append(span);
-      tile.append(bar);
-    }
+    const line = document.createElement("p");
+    line.className = "poster-genre";
+    if (title.status === "producing") line.textContent = `${Math.max(0, title.daysLeft)}d left`;
+    else if (title.kind === "licensed") line.textContent = `${Math.max(0, title.contractDays)}d left`;
+    else line.textContent = title.genre;
+    tile.append(name, line);
     root.append(tile);
   });
-  for (let i = visible.length; i < 4; i += 1) {
-    const slot = document.createElement("div");
-    slot.className = "poster-empty";
-    root.append(slot);
-  }
 }
 
 function renderRegions() {
@@ -3250,11 +3442,24 @@ function toast(text) {
   window.setTimeout(() => item.remove(), 3200);
 }
 
+function fillPosterBox(box, path, genre) {
+  if (!box) return;
+  box.replaceChildren();
+  box.style.background = GENRE_GRADIENTS[genre] || GENRE_GRADIENTS.Drama;
+  if (!path) return;
+  const img = document.createElement("img");
+  img.alt = "";
+  img.src = posterUrl(path);
+  img.addEventListener("error", () => img.remove());
+  box.append(img);
+}
+
 function openDetail(id) {
   const title = titles.find((item) => item.id === id);
   if (!title) return;
   holdClock();
   setText("detail-title", title.name);
+  fillPosterBox(document.getElementById("detail-poster"), title.poster_path, title.genre);
   const root = document.getElementById("detail-body");
   root.replaceChildren();
   const list = document.createElement("dl");
@@ -3268,6 +3473,7 @@ function openDetail(id) {
   ];
   if (title.critic) rows.push(["Scores", `Critics ${title.critic} · Audience ${title.audience}`]);
   if (title.cast && title.cast.length) rows.push(["Cast", title.cast.map((actor) => actor.name).join(", ")]);
+  if (title.overview) rows.push(["Overview", title.overview]);
   if (title.kind === "licensed") rows.push(["Contract", `${Math.max(0, title.contractDays)} days left`]);
   if (title.status === "producing") rows.push(["Days left", String(Math.max(0, title.daysLeft))]);
   rows.forEach(([label, value]) => {
@@ -3280,20 +3486,33 @@ function openDetail(id) {
     list.append(wrap);
   });
   root.append(list);
-  if (title.kind === "original" && title.series && title.status === "released" && title.outcome !== "flop") {
-    const cost = seasonCost(title);
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = payKind(cost) === "credit" ? "buy-button buy-credit" : "buy-button";
-    button.disabled = payKind(cost) === "over";
-    button.textContent = payKind(cost) === "over" ? "Over credit limit" : `New season ${formatCash(cost)}`;
-    button.addEventListener("click", () => {
-      if (renewSeason(title.id)) {
-        document.getElementById("detail-modal").hidden = true;
-        releaseClock();
-      }
+  const foot = document.getElementById("detail-foot");
+  if (foot) {
+    foot.replaceChildren();
+    if (title.kind === "original" && title.series && title.status === "released" && title.outcome !== "flop") {
+      const cost = seasonCost(title);
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = payKind(cost) === "credit" ? "buy-button buy-credit" : "buy-button";
+      button.disabled = payKind(cost) === "over" || libraryFull();
+      button.textContent = libraryFull() ? "Library full" : payKind(cost) === "over" ? "Over credit limit" : `New season ${formatCash(cost)}`;
+      button.addEventListener("click", () => {
+        if (renewSeason(title.id)) {
+          document.getElementById("detail-modal").hidden = true;
+          releaseClock();
+        }
+      });
+      foot.append(button);
+    }
+    const close = document.createElement("button");
+    close.type = "button";
+    close.className = "reset-button";
+    close.textContent = "Close";
+    close.addEventListener("click", () => {
+      document.getElementById("detail-modal").hidden = true;
+      releaseClock();
     });
-    root.append(button);
+    foot.append(close);
   }
   document.getElementById("detail-modal").hidden = false;
 }
@@ -3627,7 +3846,7 @@ function importSaveText(text) {
   if (!data || !data.state) return false;
   if (data.version === 1 || !data.state.regions) data = migrateV1(data);
   data.savedAt = Date.now();
-  data.version = 3;
+  data.version = 4;
   try {
     localStorage.setItem(SAVE_KEY, JSON.stringify(data));
   } catch (err) {
@@ -3680,13 +3899,36 @@ function bindUi() {
     const tab = event.target.closest(".tab");
     if (tab) showTab(tab.dataset.tab);
   });
-  document.querySelector(".filters").addEventListener("click", (event) => {
-    const button = event.target.closest(".filter");
-    if (!button) return;
-    logFilter = button.dataset.filter;
-    document.querySelectorAll(".filter").forEach((el) => el.classList.toggle("is-on", el === button));
-    renderLog();
-  });
+  const logFilters = document.querySelector('[aria-label="Log filter"]');
+  if (logFilters) {
+    logFilters.addEventListener("click", (event) => {
+      const button = event.target.closest(".filter");
+      if (!button) return;
+      logFilter = button.dataset.filter;
+      logFilters.querySelectorAll(".filter").forEach((el) => el.classList.toggle("is-on", el === button));
+      renderLog();
+    });
+  }
+  const libraryFilters = document.getElementById("library-filters");
+  if (libraryFilters) {
+    libraryFilters.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-library]");
+      if (!button) return;
+      libraryFilter = button.dataset.library;
+      libraryFilters.querySelectorAll("[data-library]").forEach((el) => el.classList.toggle("is-on", el === button));
+      renderLibrary();
+    });
+  }
+  const librarySorts = document.getElementById("library-sorts");
+  if (librarySorts) {
+    librarySorts.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-libsort]");
+      if (!button) return;
+      librarySort = button.dataset.libsort;
+      librarySorts.querySelectorAll("[data-libsort]").forEach((el) => el.classList.toggle("is-on", el === button));
+      renderLibrary();
+    });
+  }
   document.getElementById("posters").addEventListener("click", (event) => {
     const tile = event.target.closest("[data-title]");
     if (tile) openDetail(tile.dataset.title);
@@ -3725,19 +3967,26 @@ function bindUi() {
     if (option) applyOption(current, option);
     dismissBlock();
   });
-  document.getElementById("renew-yes").addEventListener("click", () => {
-    if (renewTitle(pendingRenewId)) {
-      document.getElementById("renew-modal").hidden = true;
-      dismissBlock();
-    }
-  });
-  document.getElementById("renew-no").addEventListener("click", () => {
-    dropLicense(pendingRenewId);
-    document.getElementById("renew-modal").hidden = true;
-    dismissBlock();
-  });
+  document.getElementById("renew-close").addEventListener("click", dismissBlock);
+  document.getElementById("event-close").addEventListener("click", dismissBlock);
+  document.getElementById("milestone-close").addEventListener("click", dismissBlock);
   document.getElementById("weekly-close").addEventListener("click", dismissBlock);
+  const weeklyX = document.getElementById("weekly-x");
+  if (weeklyX) weeklyX.addEventListener("click", dismissBlock);
   document.getElementById("milestone-continue").addEventListener("click", dismissBlock);
+  const rivalX = document.getElementById("rival-x");
+  if (rivalX) rivalX.addEventListener("click", () => {
+    document.getElementById("rival-modal").hidden = true;
+    releaseClock();
+  });
+  const settingsX = document.getElementById("settings-x");
+  if (settingsX) settingsX.addEventListener("click", closeSettings);
+  const welcomeX = document.getElementById("welcome-x");
+  if (welcomeX) welcomeX.addEventListener("click", () => {
+    document.getElementById("welcome-modal").hidden = true;
+    welcomeHold = false;
+    start();
+  });
   document.getElementById("welcome-close").addEventListener("click", () => {
     document.getElementById("welcome-modal").hidden = true;
     welcomeHold = false;
@@ -3789,18 +4038,18 @@ function bindUi() {
   document.getElementById("resume-button").addEventListener("click", () => setSpeed(state.speed || 1));
   document.getElementById("tutorial-next").addEventListener("click", () => openTutorial(tutorialIndex + 1));
   document.getElementById("tutorial-skip").addEventListener("click", () => openTutorial(TUTORIAL.length));
+  document.querySelectorAll(".overlay").forEach((overlay) => {
+    overlay.addEventListener("click", (event) => {
+      if (event.target === overlay) closeOverlay(overlay);
+    });
+    if (overlayObserver) overlayObserver.observe(overlay, { attributes: true, attributeFilter: ["hidden"] });
+  });
+  syncModalLock();
   document.addEventListener("keydown", (event) => {
     const tag = event.target && event.target.closest ? event.target.closest("input, textarea, button") : null;
     if (event.key === "Escape") {
-      if (!document.getElementById("commission-modal").hidden) closeCommission();
-      else if (!document.getElementById("detail-modal").hidden) {
-        document.getElementById("detail-modal").hidden = true;
-        releaseClock();
-      } else if (!document.getElementById("settings-modal").hidden) closeSettings();
-      else if (!document.getElementById("rival-modal").hidden) {
-        document.getElementById("rival-modal").hidden = true;
-        releaseClock();
-      }       else if (!document.getElementById("milestone-modal").hidden) dismissBlock();
+      const overlay = topOverlay();
+      if (overlay) closeOverlay(overlay);
       else if (guideOpen) closeGuide();
       return;
     }
@@ -4253,6 +4502,10 @@ async function enrichTitle(row) {
 
 function acquireTitle(row) {
   if (!row || ownedTmdb(row) || state.status !== "playing") return false;
+  if (libraryFull()) {
+    toast("The library is full. Expand it to add more.");
+    return false;
+  }
   const ask = titleAsk(row);
   if (!trySpend(ask.cost)) return false;
   clearOverrides();
@@ -4373,6 +4626,10 @@ function productionPlan() {
 
 function startOriginal() {
   const plan = productionPlan();
+  if (libraryFull()) {
+    toast("The library is full. Expand it to add more.");
+    return false;
+  }
   if (!trySpend(plan.cost)) return false;
   clearOverrides();
   const cast = [studio.lead, studio.support].filter(Boolean).map((actor) => ({
@@ -4463,16 +4720,31 @@ function renderStudio() {
   const root = studioRoot();
   if (!root || !studio) return;
   root.replaceChildren();
+  const head = document.createElement("div");
+  head.className = "modal-head";
   const heading = document.createElement("h2");
   heading.id = "studio-heading";
+  const close = document.createElement("button");
+  close.type = "button";
+  close.className = "modal-x";
+  close.setAttribute("aria-label", "Close");
+  close.textContent = "×";
+  close.addEventListener("click", closeCommission);
+  head.append(heading, close);
   const body = document.createElement("div");
-  root.append(heading, body);
+  body.className = "modal-scroll";
+  const foot = document.createElement("div");
+  foot.className = "modal-foot";
+  root.append(head, body, foot);
   if (studio.step === "path") renderStudioPath(heading, body);
   else if (studio.step === "acquire") renderStudioAcquire(heading, body);
   else if (studio.step === "detail") renderStudioDetail(heading, body);
   else if (studio.step === "format") renderStudioFormat(heading, body);
   else if (studio.step === "cast") renderStudioCast(heading, body);
   else renderStudioBudget(heading, body);
+  Array.from(body.children).forEach((child) => {
+    if (child.classList.contains("modal-actions") || child.classList.contains("buy-button")) foot.append(child);
+  });
 }
 
 function studioNav(back) {
@@ -4614,40 +4886,57 @@ function renderStudioDetail(heading, body) {
   heading.textContent = row ? row.title : "Title";
   if (!row) return;
   const ask = titleAsk(row);
-  if (row.poster_path) {
-    const img = document.createElement("img");
-    img.className = "detail-poster";
-    img.alt = "";
-    img.src = posterUrl(row.poster_path);
-    body.append(img);
-  }
-  const copy = document.createElement("p");
-  copy.className = "modal-line";
-  copy.textContent = `${row.tagline ? `${row.tagline} ` : ""}${row.overview || "No overview yet."}`;
-  const meta = document.createElement("p");
-  meta.className = "modal-line";
-  const length = row.mediaType === "tv" ? `${row.seasons || "?"} seasons` : `${row.runtime || "?"} min`;
-  meta.textContent = `${row.genre} · ${length} · critics ${Math.round((row.vote_average || 0) * 10)} · audience ${Math.round((row.percentile || 0.5) * 100)} · ${formatCash(ask.cost)}`;
-  body.append(copy, meta);
-  (row.billed || []).forEach((person) => {
-    const line = document.createElement("p");
-    line.className = "modal-line";
-    line.textContent = person.name;
-    body.append(line);
+  const year = (row.release_date || "").slice(0, 4);
+  const layout = document.createElement("div");
+  layout.className = "deal-layout";
+  const poster = document.createElement("div");
+  poster.className = "deal-poster";
+  fillPosterBox(poster, row.poster_path, row.genre);
+  const copy = document.createElement("div");
+  copy.className = "deal-copy";
+  const chips = document.createElement("p");
+  chips.className = "chip-row";
+  [year || "—", row.genre, row.mediaType === "tv" ? "Series" : "Film"].forEach((label) => {
+    const chip = document.createElement("span");
+    chip.className = "genre-chip";
+    chip.textContent = label;
+    chips.append(chip);
   });
+  const scores = document.createElement("p");
+  scores.className = "modal-line";
+  const contract = row.mediaType === "movie" ? ((CONFIG.contractDays || {}).movie || 180) : ((CONFIG.contractDays || {}).tv || 90);
+  scores.textContent = `Critics ${Math.round((row.vote_average || 0) * 10)} · Audience ${Math.round((row.percentile || 0.5) * 100)} · Contract ${contract} days`;
+  if (row.tagline) {
+    const tag = document.createElement("p");
+    tag.className = "modal-line";
+    tag.textContent = row.tagline;
+    copy.append(chips, scores, tag);
+  } else copy.append(chips, scores);
+  const overview = document.createElement("p");
+  overview.className = "modal-line";
+  overview.textContent = row.overview || "No overview yet.";
+  copy.append(overview);
+  const cast = document.createElement("p");
+  cast.className = "modal-line";
+  const names = (row.billed || []).slice(0, 5).map((person) => person.name).filter(Boolean);
+  cast.textContent = names.length ? `Cast: ${names.join(", ")}` : "Cast: loading the top billed names.";
+  const money = document.createElement("p");
+  money.className = "modal-line";
+  money.textContent = `Cost ${formatCash(ask.cost)} · upkeep ${formatCash(ask.upkeep)}/day · balance after ${formatCash(state.cash - ask.cost)}`;
+  copy.append(cast, money);
+  layout.append(poster, copy);
+  body.append(layout);
   const kind = payKind(ask.cost);
+  const full = libraryFull();
   const buy = document.createElement("button");
   buy.type = "button";
   buy.className = kind === "credit" ? "buy-button buy-credit" : "buy-button";
-  buy.disabled = kind === "over" || ownedTmdb(row);
-  buy.textContent = ownedTmdb(row) ? "Already owned" : kind === "over" ? "Over credit limit" : kind === "credit" ? "Buy on credit" : "Buy";
-  const after = document.createElement("p");
-  after.className = "fine-print";
-  after.textContent = `Balance after: ${formatCash(state.cash - ask.cost)}`;
+  buy.disabled = kind === "over" || ownedTmdb(row) || full;
+  buy.textContent = ownedTmdb(row) ? "Owned" : full ? "Library full" : kind === "over" ? "Over credit limit" : kind === "credit" ? "Buy on credit" : "Buy";
   buy.addEventListener("click", () => { if (acquireTitle(row)) closeCommission(); });
   const nav = studioNav("acquire");
   nav.prepend(buy);
-  body.append(after, nav);
+  body.append(nav);
 }
 
 function renderStudioFormat(heading, body) {
@@ -5033,6 +5322,61 @@ function hookStudioUi() {
   });
 }
 
+function spendAllDeals() {
+  if (libraryFull()) buyUpgrade("expand");
+  moviePackList().forEach((pack) => {
+    if (!activeLicense(pack.id)) signLicense(pack.id);
+  });
+  Object.keys(LICENSES).forEach((id) => {
+    const def = LICENSES[id];
+    if (def && def.genre === "Sport" && !activeLicense(id)) signLicense(id);
+  });
+  if (!libraryFull() && state.day > 0 && state.day % 12 === 0) commission(GENRES[state.day % GENRES.length], "standard");
+}
+
+function debugDeals() {
+  if (!state || state.status !== "playing") beginGame("normal");
+  const samples = [
+    ["Night Bus", "Drama", "movie", 11],
+    ["Glass House", "Comedy", "movie", 8],
+    ["Paper Boats", "Kids", "tv", 90],
+    ["Field Notes", "Documentary", "tv", 40],
+    ["Late Checkout", "Reality", "tv", 11],
+    ["Football Package", "Sport", "sports", 11],
+    ["Cricket Package", "Sport", "sports", 6],
+    ["Action Pack", "Drama", "movie", 180],
+    ["Rom-Com Pack", "Comedy", "movie", 30],
+    ["Signal Lost", "Drama", "movie", 3],
+  ];
+  samples.forEach((sample, index) => {
+    if (libraryFull()) return;
+    makeTitle({
+      name: sample[0],
+      genre: sample[1],
+      kind: "licensed",
+      tier: "license",
+      status: "released",
+      quality: 1.4,
+      upkeep: 40 + index * 8,
+      cost: 5000,
+      outcome: "licensed",
+      releaseDay: state.day,
+      contractDays: sample[3],
+      contractLength: sample[2] === "tv" ? 90 : sample[2] === "sports" ? 90 : 180,
+      mediaType: sample[2] === "tv" ? "tv" : "movie",
+      series: sample[2] === "tv",
+      licenseId: sample[2] === "sports" ? sample[0].toLowerCase().split(" ")[0] : `debug-${index}`,
+      critic: 60 + index,
+      audience: 55 + index,
+    });
+  });
+  const due = titles.filter((title) => title.kind === "licensed" && title.contractDays <= 10 && title.contractDays > 0);
+  due.forEach((title) => pendingRenew.add(title.id));
+  if (hasUi() && due.length) enqueuePrompt({ type: "renewals", ids: due.map((title) => title.id) });
+  syncView();
+  return slotsUsed();
+}
+
 function autoPlayContent() {
   const live = titles.filter((title) => title.status === "released" || title.status === "producing").length;
   if (live < 8 && state.day > 0 && state.day % 30 === 0) {
@@ -5055,7 +5399,7 @@ function autoPlayContent() {
 
 function balanceTest() {
   const savedRng = rng;
-  const strategies = [2, 5, 10, 20, "adaptive"];
+  const strategies = [2, 5, 10, 20, "adaptive", "spend"];
   const report = strategies.map((strategy) => {
     let seed = 24681357;
     rng = function seeded() {
@@ -5064,7 +5408,7 @@ function balanceTest() {
     };
     beginGame("normal");
     state.nextEventDay = Infinity;
-    const fixed = strategy === "adaptive" ? 8 : Number(strategy);
+    const fixed = strategy === "adaptive" || strategy === "spend" ? 8 : Number(strategy);
     state.monthlyPrice = fixed;
     state.priceAnchor = fixed;
     const maxDays = 2600;
@@ -5083,12 +5427,13 @@ function balanceTest() {
         state.monthlyPrice = moved;
         state.priceAnchor = moved;
       }
-      if (strategy !== "adaptive") {
+      if (strategy !== "adaptive" && strategy !== "spend") {
         state.monthlyPrice = fixed;
         state.priceAnchor = fixed;
         state.priceHikeDays = 0;
       }
-      autoPlayContent();
+      if (strategy === "spend") spendAllDeals();
+      else autoPlayContent();
       tick({ log: false });
     }
     return {
@@ -5139,6 +5484,7 @@ const api = {
   debugFire,
   balanceTest,
   debugCatalogue,
+  debugDeals,
   priceAttractiveness,
   churnRate,
   subscriberGrowth,

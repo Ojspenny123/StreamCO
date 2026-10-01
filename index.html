@@ -147,6 +147,20 @@
               <h3 class="slot-title">Library</h3>
               <span class="trend-chip" id="trend-chip" hidden>Trending</span>
             </div>
+            <p class="library-meta" id="library-meta">0 / 12 slots</p>
+            <div class="filters" id="library-filters">
+              <button type="button" class="filter is-on" data-library="all">All</button>
+              <button type="button" class="filter" data-library="movies">Movies</button>
+              <button type="button" class="filter" data-library="series">Series</button>
+              <button type="button" class="filter" data-library="originals">Originals</button>
+              <button type="button" class="filter" data-library="sports">Sports</button>
+            </div>
+            <div class="filters" id="library-sorts">
+              <button type="button" class="filter is-on" data-libsort="newest">Newest</button>
+              <button type="button" class="filter" data-libsort="expiring">Expiring</button>
+              <button type="button" class="filter" data-libsort="scores">Best scores</button>
+              <button type="button" class="filter" data-libsort="upkeep">Highest upkeep</button>
+            </div>
             <p class="empty-copy" id="library-empty">No titles yet.</p>
             <div class="posters" id="posters"></div>
           </div>
@@ -235,10 +249,17 @@
 
   <div class="overlay" id="milestone-modal" hidden>
     <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="milestone-title">
-      <p class="modal-kicker">Milestone</p>
+      <div class="modal-head">
+        <p class="modal-kicker">Milestone</p>
+        <button type="button" class="modal-x" id="milestone-close" aria-label="Close">×</button>
+      </div>
       <h2 id="milestone-title">Local Player</h2>
-      <p class="modal-line" id="milestone-line"></p>
-      <button type="button" class="buy-button" id="milestone-continue">Continue</button>
+      <div class="modal-scroll">
+        <p class="modal-line" id="milestone-line"></p>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="buy-button" id="milestone-continue">Continue</button>
+      </div>
     </div>
   </div>
 
@@ -340,7 +361,7 @@
   </div>
 
   <div class="overlay" id="commission-modal" hidden>
-    <div class="modal-card modal-wide" role="dialog" aria-modal="true" aria-labelledby="commission-title">
+    <div class="modal-card modal-wide deal-modal" role="dialog" aria-modal="true" aria-labelledby="studio-heading">
       <p class="modal-kicker">Commission</p>
       <h2 id="commission-title">New original</h2>
       <p class="modal-line">Pick a genre, then a budget. Production takes days.</p>
@@ -355,78 +376,110 @@
 
   <div class="overlay" id="event-modal" hidden>
     <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="event-title">
-      <p class="event-emoji" id="event-emoji"></p>
+      <div class="modal-head">
+        <p class="event-emoji" id="event-emoji"></p>
+        <button type="button" class="modal-x" id="event-close" aria-label="Close">×</button>
+      </div>
       <h2 id="event-title">Event</h2>
-      <p class="modal-line" id="event-copy"></p>
-      <div class="option-list" id="event-options"></div>
+      <div class="modal-scroll">
+        <p class="modal-line" id="event-copy"></p>
+      </div>
+      <div class="modal-foot option-list" id="event-options"></div>
     </div>
   </div>
 
   <div class="overlay" id="detail-modal" hidden>
-    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="detail-title">
-      <p class="modal-kicker">Title</p>
-      <h2 id="detail-title">Title</h2>
-      <div id="detail-body"></div>
-      <button type="button" class="buy-button" id="detail-close">Close</button>
+    <div class="modal-card modal-wide deal-modal" role="dialog" aria-modal="true" aria-labelledby="detail-title">
+      <div class="modal-head">
+        <h2 id="detail-title">Title</h2>
+        <button type="button" class="modal-x" id="detail-close" aria-label="Close">×</button>
+      </div>
+      <div class="deal-layout">
+        <div class="deal-poster" id="detail-poster"></div>
+        <div class="modal-scroll" id="detail-body"></div>
+      </div>
+      <div class="modal-foot" id="detail-foot"></div>
     </div>
   </div>
 
   <div class="overlay" id="renew-modal" hidden>
-    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="renew-title">
-      <p class="modal-kicker">Contract</p>
-      <h2 id="renew-title">Licence ending</h2>
-      <p class="modal-line" id="renew-copy"></p>
-      <div class="modal-actions">
-        <button type="button" class="reset-button" id="renew-no">Let it go</button>
-        <button type="button" class="buy-button" id="renew-yes">Renew</button>
+    <div class="modal-card modal-wide" role="dialog" aria-modal="true" aria-labelledby="renew-title">
+      <div class="modal-head">
+        <h2 id="renew-title">Renewals due</h2>
+        <button type="button" class="modal-x" id="renew-close" aria-label="Close">×</button>
       </div>
+      <div class="modal-scroll" id="renew-list"></div>
     </div>
   </div>
 
   <div class="overlay" id="rival-modal" hidden>
     <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="rival-title">
-      <p class="modal-kicker">Rival</p>
+      <div class="modal-head">
+        <p class="modal-kicker">Rival</p>
+        <button type="button" class="modal-x" id="rival-x" aria-label="Close">×</button>
+      </div>
       <h2 id="rival-title">Rival</h2>
-      <p class="modal-line" id="rival-blurb"></p>
-      <canvas class="mini-chart" id="rival-spark" width="360" height="100" aria-label="Rival subscriber history"></canvas>
-      <div id="rival-body"></div>
-      <button type="button" class="buy-button" id="rival-close">Close</button>
+      <div class="modal-scroll">
+        <p class="modal-line" id="rival-blurb"></p>
+        <canvas class="mini-chart" id="rival-spark" width="360" height="100" aria-label="Rival subscriber history"></canvas>
+        <div id="rival-body"></div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="buy-button" id="rival-close">Close</button>
+      </div>
     </div>
   </div>
 
   <div class="overlay" id="weekly-modal" hidden>
     <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="weekly-title">
-      <p class="modal-kicker">Weekly report</p>
+      <div class="modal-head">
+        <p class="modal-kicker">Weekly report</p>
+        <button type="button" class="modal-x" id="weekly-x" aria-label="Close">×</button>
+      </div>
       <h2 id="weekly-title">30 days on the books</h2>
-      <div id="weekly-body"></div>
-      <button type="button" class="buy-button" id="weekly-close">Back to work</button>
+      <div class="modal-scroll" id="weekly-body"></div>
+      <div class="modal-foot">
+        <button type="button" class="buy-button" id="weekly-close">Back to work</button>
+      </div>
     </div>
   </div>
 
   <div class="overlay" id="welcome-modal" hidden>
     <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="welcome-title">
-      <p class="modal-kicker">Welcome back</p>
+      <div class="modal-head">
+        <p class="modal-kicker">Welcome back</p>
+        <button type="button" class="modal-x" id="welcome-x" aria-label="Close">×</button>
+      </div>
       <h2 id="welcome-title">While you were out</h2>
-      <div id="welcome-body"></div>
-      <button type="button" class="buy-button" id="welcome-close">Continue</button>
+      <div class="modal-scroll" id="welcome-body"></div>
+      <div class="modal-foot">
+        <button type="button" class="buy-button" id="welcome-close">Continue</button>
+      </div>
     </div>
   </div>
 
   <div class="overlay" id="settings-modal" hidden>
     <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="settings-title">
-      <p class="modal-kicker">Settings</p>
-      <h2 id="settings-title">Settings</h2>
-      <label class="settings-row"><input type="checkbox" id="settings-animations" checked> Animations</label>
-      <p class="modal-line">Space pauses. 1, 2, and 3 set the speed.</p>
-      <div class="modal-actions">
-        <button type="button" class="reset-button" id="settings-tutorial">Reset tutorial</button>
-        <button type="button" class="reset-button" id="settings-guide">How to play</button>
-        <button type="button" class="reset-button" id="settings-refresh">Refresh catalogue</button>
-        <button type="button" class="reset-button" id="settings-export">Export save</button>
-        <button type="button" class="reset-button" id="settings-import">Import save</button>
-        <button type="button" class="buy-button" id="settings-close">Close</button>
+      <div class="modal-head">
+        <p class="modal-kicker">Settings</p>
+        <button type="button" class="modal-x" id="settings-x" aria-label="Close">×</button>
       </div>
-      <div class="catalogue-debug" id="catalogue-debug"></div>
+      <h2 id="settings-title">Settings</h2>
+      <div class="modal-scroll">
+        <label class="settings-row"><input type="checkbox" id="settings-animations" checked> Animations</label>
+        <p class="modal-line">Space pauses. 1, 2, and 3 set the speed.</p>
+        <div class="catalogue-debug" id="catalogue-debug"></div>
+      </div>
+      <div class="modal-foot">
+        <div class="modal-actions">
+          <button type="button" class="reset-button" id="settings-tutorial">Reset tutorial</button>
+          <button type="button" class="reset-button" id="settings-guide">How to play</button>
+          <button type="button" class="reset-button" id="settings-refresh">Refresh catalogue</button>
+          <button type="button" class="reset-button" id="settings-export">Export save</button>
+          <button type="button" class="reset-button" id="settings-import">Import save</button>
+          <button type="button" class="buy-button" id="settings-close">Close</button>
+        </div>
+      </div>
       <input id="import-file" type="file" accept="application/json,.json" hidden>
     </div>
   </div>

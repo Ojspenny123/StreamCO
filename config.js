@@ -48,6 +48,10 @@
       flatSignups: 3,
       organicRate: 0.00072,
       qualityDamp: 0.64,
+      diminish: [1, 0.8, 0.65, 0.5, 0.4, 0.32],
+      sportsDiminish: [1, 0.55, 0.35, 0.22, 0.16, 0.12, 0.1],
+      sportsCostStep: 1.25,
+      sportsRenewStep: 1.35,
       newcomerBase: 4,
       newcomerTam: 0.0000015,
       marketGrowth: 1.00035,
@@ -141,6 +145,7 @@
     renewRise: 1.2,
     renewWindow: 10,
     offerDays: 30,
+    library: { slots: 12, expandSlots: 4, expandCost: 12000 },
     regions: [
       { id: "uk", tam: 4200000, tolerance: 1, unlock: 0, localise: 0 },
       { id: "europe", tam: 9000000, tolerance: 0.92, unlock: 28000, localise: 12000 },
