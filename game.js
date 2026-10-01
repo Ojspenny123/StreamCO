@@ -123,12 +123,18 @@ function formatPrice(amount) {
   return `$${Number(amount).toFixed(2)}`;
 }
 
+/** One decimal, remainder dropped, so 12,450 is 12.4K and 1,200,000 is 1.2M. */
+function formatOneDecimal(value) {
+  const truncated = Math.floor(value * 10 + 1e-8) / 10;
+  return truncated.toFixed(1);
+}
+
 function formatSubscribers(value) {
   const n = Math.round(value);
   const sign = n < 0 ? "-" : "";
   const abs = Math.abs(n);
-  if (abs >= 1000000) return `${sign}${(abs / 1000000).toFixed(1)}M`;
-  if (abs >= 10000) return `${sign}${(abs / 1000).toFixed(1)}K`;
+  if (abs >= 1000000) return `${sign}${formatOneDecimal(abs / 1000000)}M`;
+  if (abs >= 10000) return `${sign}${formatOneDecimal(abs / 1000)}K`;
   return `${sign}${abs.toLocaleString("en-US")}`;
 }
 

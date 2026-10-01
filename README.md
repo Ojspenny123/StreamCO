@@ -27,6 +27,8 @@ Each day:
 
 Win at 1,000,000 subscribers. Lose if cash stays below -$50,000 for 30 days in a row. The loop stops and prints `WIN` or `LOSE`.
 
+Cash is shown in whole dollars (`$12,450`, or `-$50,000` when negative). Subscriber totals below 10,000 keep a thousands separator. From 10,000 upward they use one decimal with the remainder dropped, so 12,450 is `12.4K` and 1,200,000 is `1.2M`.
+
 ### Console commands
 
 ```js
