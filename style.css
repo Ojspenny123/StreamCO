@@ -2108,3 +2108,121 @@ button,
   .modal-card h2,
   .deal-modal h2 { font-size: 24px; }
 }
+
+.price-chip {
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 4px 14px;
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.price-chip .stat-value {
+  font-size: 18px;
+}
+
+.price-chip:hover {
+  border-color: var(--accent);
+}
+
+#pricing-modal .modal-card {
+  width: min(960px, 100%);
+  text-align: left;
+}
+
+#pricing-modal .modal-x {
+  width: 44px;
+  height: 44px;
+}
+
+.tier-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.tier-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--bg);
+}
+
+.tier-card h3 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.tier-card p,
+.tier-kicker,
+.tier-slider-label {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.tier-card .price-slider {
+  width: 100%;
+  height: 28px;
+}
+
+.tier-card .buy-button {
+  margin-top: 8px;
+  min-height: 44px;
+}
+
+.tier-note {
+  color: var(--warning);
+}
+
+.tier-total {
+  margin: 14px 0 0;
+  font-weight: 700;
+}
+
+.tier-mix {
+  margin: 0 0 12px;
+}
+
+.tier-mix-bar {
+  display: flex;
+  height: 12px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--border);
+}
+
+.tier-mix-bar span {
+  display: block;
+  height: 100%;
+}
+
+.tier-std { background: #E50914; }
+.tier-prem { background: #F5A623; }
+.tier-free { background: #4C6FFF; }
+
+.tier-mix-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 6px 0 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.sweet-toggle {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+@media (max-width: 720px) {
+  .tier-cards { grid-template-columns: 1fr; }
+}

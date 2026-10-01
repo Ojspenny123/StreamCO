@@ -1,6 +1,17 @@
 (function () {
   var changelog = [
     {
+      version: "4.0",
+      date: "2026-10-01",
+      added: [
+        "Subscription tiers: Free (with ads), Standard and Premium, each with its own price. New Pricing panel, tier mix, revenue and subscribers by tier charts, and a Premium launch upgrade."
+      ],
+      changed: [
+        "The single price slider is replaced by a Pricing panel. Subscribers now count paid subscribers only. Company Value and weekly reports include tiers. Rebalanced."
+      ],
+      fixed: []
+    },
+    {
       version: "3.41",
       date: "2026-10-01",
       added: [

@@ -1,5 +1,13 @@
 # Changelog
 
+## v4.0 - 2026-10-01
+
+### Added
+- Subscription tiers: Free (with ads), Standard and Premium, each with its own price. New Pricing panel, tier mix, revenue and subscribers by tier charts, and a Premium launch upgrade.
+
+### Changed
+- The single price slider is replaced by a Pricing panel. Subscribers now count paid subscribers only. Company Value and weekly reports include tiers. Rebalanced.
+
 ## v3.41 - 2026-10-01
 
 ### Added

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>StreamCo v3.41</title>
+  <title>StreamCo v4.0</title>
   <link rel="icon" type="image/svg+xml" href="./icons/favicon.svg">
   <link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon-32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="./icons/favicon-16.png">
@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./style.css?v=3.41">
+  <link rel="stylesheet" href="./style.css?v=4.0">
 </head>
 <body>
   <header class="topbar">
@@ -54,14 +54,11 @@
       </div>
       <div class="stat price-stat">
         <div class="stat-head">
-          <span class="stat-label" id="price-label">Monthly price</span>
+          <span class="stat-label" id="price-label">Pricing</span>
         </div>
-        <div class="price-row">
-          <span class="stat-value" id="price-value" aria-labelledby="price-label">$5.00</span>
-          <input class="price-slider" id="price-slider" type="range" min="2" max="20" step="0.5" value="5" aria-labelledby="price-label">
-        </div>
-        <span class="price-outlook" id="price-outlook">Growth: Medium / Churn: Medium</span>
-        <label class="ad-row"><input type="checkbox" id="ad-tier"> Ad-supported tier</label>
+        <button type="button" class="price-chip" id="price-chip" aria-labelledby="price-label">
+          <span class="stat-value" id="price-value">$5.00</span>
+        </button>
       </div>
     </div>
 
@@ -142,6 +139,10 @@
         </div>
 
         <div class="tab-panel" id="panel-home">
+          <div class="tier-mix" id="tier-mix" aria-label="Tier mix">
+            <div class="tier-mix-bar" id="tier-mix-bar"></div>
+            <p class="tier-mix-legend" id="tier-mix-legend"></p>
+          </div>
           <div class="chart-slot">
             <h3 class="slot-title">Subscribers</h3>
             <canvas class="subscriber-chart" id="subscriber-chart" aria-label="Subscriber history"></canvas>
@@ -193,7 +194,19 @@
               <canvas class="mini-chart" id="chart-regions" aria-label="Subscribers by region"></canvas>
             </div>
             <div class="chart-slot">
+              <h3 class="slot-title">Revenue by tier</h3>
+              <canvas class="mini-chart" id="chart-tier-revenue" aria-label="Revenue by tier, stacked. Red Standard, gold Premium, blue Free"></canvas>
+            </div>
+            <div class="chart-slot">
+              <h3 class="slot-title">Subscribers by tier</h3>
+              <canvas class="mini-chart" id="chart-tier-subs" aria-label="Subscribers by tier, stacked. Red Standard, gold Premium, blue Free"></canvas>
+            </div>
+            <div class="chart-slot">
               <h3 class="slot-title">Price sweet spot</h3>
+              <div class="sweet-toggle" role="group" aria-label="Sweet spot tier">
+                <button type="button" class="filter is-on" data-sweet="standard" aria-pressed="true">Standard</button>
+                <button type="button" class="filter" data-sweet="premium" aria-pressed="false">Premium</button>
+              </div>
               <canvas class="mini-chart" id="chart-sweet" aria-label="Estimated daily profit by price"></canvas>
             </div>
           </div>
@@ -242,7 +255,7 @@
     </section>
 
     <footer class="credit">
-      <p>Created by OJ Spenny Gaming <span class="version-note js-version-date">v3.41 - 1 Oct 2026</span></p>
+      <p>Created by OJ Spenny Gaming <span class="version-note js-version-date">v4.0 - 1 Oct 2026</span></p>
       <p class="attribution">
         <img class="tmdb-logo" src="https://www.themoviedb.org/assets/2/v4/logos/v2/blue_short-8e7b30f73a4020692ccca9c88bafe5dcb6f8a62a4c6bc55cd9ba82bb2cd95f6c.svg" alt="TMDB">
         This product uses the TMDB API but is not endorsed or certified by TMDB.
@@ -303,7 +316,7 @@
         <img class="brand-logo" src="./icons/logo.svg" alt="StreamCo logo">
         <span class="logo-word">StreamCo</span>
       </div>
-      <p class="version-badge js-version">v3.41</p>
+      <p class="version-badge js-version">v4.0</p>
       <p class="gate-tagline" id="title-tagline">Build a streaming empire.</p>
       <div class="install-hint" id="install-hint" hidden>
         <button type="button" class="reset-button" id="install-button" hidden>Install StreamCo</button>
@@ -385,6 +398,56 @@
         <p class="attribution">Fan-made game. Not affiliated with or endorsed by any person, title or company shown.</p>
       </footer>
     </section>
+  </div>
+
+  <div class="overlay" id="pricing-modal" hidden>
+    <div class="modal-card pricing-card" role="dialog" aria-modal="true" aria-labelledby="pricing-title">
+      <div class="modal-head">
+        <h2 id="pricing-title">Pricing</h2>
+        <button type="button" class="modal-x" id="pricing-close" aria-label="Close">×</button>
+      </div>
+      <div class="modal-scroll">
+        <div class="tier-cards">
+          <article class="tier-card" id="tier-free">
+            <h3>Free</h3>
+            <p class="tier-kicker">With ads</p>
+            <div id="free-stats">
+              <p id="free-viewers">0 viewers</p>
+              <p id="free-income">Ad income $0.00/day</p>
+            </div>
+            <p id="free-locked">Locked</p>
+            <button type="button" class="buy-button" id="launch-free">Launch</button>
+          </article>
+          <article class="tier-card" id="tier-standard">
+            <h3>Standard</h3>
+            <label class="tier-slider-label" for="price-slider">Monthly price</label>
+            <input class="price-slider" id="price-slider" type="range" min="2" max="20" step="0.5" value="5" aria-label="Standard monthly price">
+            <p id="standard-subs">100 subscribers</p>
+            <p id="standard-revenue">Revenue/day $0.00</p>
+            <p id="standard-churn">Churn 0.00%</p>
+            <p class="price-outlook" id="price-outlook">Growth: Medium / Churn: Medium</p>
+          </article>
+          <article class="tier-card" id="tier-premium">
+            <h3>Premium</h3>
+            <div id="premium-locked">
+              <p>Locked</p>
+              <button type="button" class="buy-button" id="launch-premium">Launch Premium - $15,000</button>
+            </div>
+            <div id="premium-stats" hidden>
+              <label class="tier-slider-label" for="premium-slider">Monthly price</label>
+              <input class="price-slider" id="premium-slider" type="range" min="4" max="30" step="0.5" value="12" aria-label="Premium monthly price">
+              <p id="premium-note" class="tier-note" hidden></p>
+              <p id="premium-subs">0 subscribers</p>
+              <p id="premium-revenue">Revenue/day $0.00</p>
+              <p id="premium-churn">Churn 0.00%</p>
+              <p id="premium-share">Share of paid subs 0%</p>
+              <p id="premium-hint"></p>
+            </div>
+          </article>
+        </div>
+        <p class="tier-total" id="tier-total">Paid subs 100 | Free viewers 0 | Revenue/day $0</p>
+      </div>
+    </div>
   </div>
 
   <div class="pause-banner" id="pause-overlay" hidden>
@@ -502,7 +565,7 @@
         <p class="modal-line">Space pauses. 1, 2, and 3 set the speed.</p>
         <section class="about-block">
           <h3>About</h3>
-          <p id="about-version">StreamCo v3.41 · 1 Oct 2026</p>
+          <p id="about-version">StreamCo v4.0 · 1 Oct 2026</p>
           <button type="button" class="reset-button" id="whats-new-button">What's new</button>
         </section>
         <div class="catalogue-debug" id="catalogue-debug"></div>
@@ -547,9 +610,9 @@
   <noscript>
     <p class="noscript">StreamCo needs JavaScript to run the day-by-day simulation.</p>
   </noscript>
-  <script src="./config.js?v=3.41"></script>
-  <script src="./changelog.js?v=3.41"></script>
-  <script src="./game.js?v=3.41"></script>
+  <script src="./config.js?v=4.0"></script>
+  <script src="./changelog.js?v=4.0"></script>
+  <script src="./game.js?v=4.0"></script>
   <script>
     (function () {
       var key = "streamco-install-dismissed";

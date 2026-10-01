@@ -120,6 +120,7 @@ const UPGRADES = [
   { id: "social", group: "Growth", name: "Social media campaign", effect: "+10% growth", cost: 2500, marketing: 0.1, icon: "social", event: "The social campaign is picking up shares." },
   { id: "tv", group: "Growth", name: "TV advertising", effect: "+25% growth", cost: 8000, marketing: 0.25, icon: "tv", event: "The TV spot is on the air." },
   { id: "app", group: "Growth", name: "Mobile app", effect: "+15% growth", cost: 12000, marketing: 0.15, icon: "app", event: "The mobile app is in people's pockets." },
+  { id: "premium-tier", group: "Growth", name: "Launch Premium tier", effect: "A higher plan for people who want the best", cost: (CONFIG.tiers && CONFIG.tiers.premiumUnlockCost) || 15000, once: true, icon: "premium", event: "Premium is open." },
   { id: "recommendations", group: "Retention", name: "Better recommendations", effect: "-10% churn", cost: 4000, icon: "recs", event: "Recommendations are keeping people watching." },
   { id: "free-tier", group: "Retention", name: "Free ad-supported tier", effect: "+growth, small revenue per free user", cost: 6000, marketing: 0.12, icon: "free", event: "The free tier is open." },
   { id: "servers", group: "Platform", name: "Faster servers", effect: "Halves the buffering churn penalty", cost: 9000, icon: "servers", event: "Faster servers cleared the buffering." },
@@ -143,10 +144,11 @@ const ICONS = {
   recs: "M4 5h16v2H4V5zm0 6h10v2H4v-2zm0 6h12v2H4v-2zm13-7l4 3-4 3v-6z",
   free: "M12 3l8 4v2H4V7l8-4zM4 11h16v9H4v-9zm3 2v5h3v-5H7z",
   servers: "M3 3h18v6H3V3zm2 2v2h3V5H5zm0 8v2h3v-2H5zM3 11h18v6H3v-6z",
+  premium: "M12 2l2.2 6.6H21l-5.5 4 2.1 6.6L12 16.2 6.4 19.2l2.1-6.6L3 8.6h6.8L12 2z",
 };
 
 const TUTORIAL = [
-  { selector: "#price-slider", text: "Price changes growth and churn. Cheap grows fast and can lose money. Raise it gradually." },
+  { selector: "#price-chip", text: "Open Pricing for Standard and Premium. Cheap grows fast. Premium earns more only when the catalogue is strong." },
   { selector: ".upgrades", text: "The content desk acquires real titles or builds originals. Sports packages are contracts." },
   { selector: "#cash-value", text: "You can buy on credit up to the limit. Interest is charged every day the balance is negative. Extra starting cash is a head start and trims the final score." },
   { selector: "#posters", text: "The library shows productions and titles. Click a tile for scores, cast, freshness, and the contract." },
@@ -182,6 +184,7 @@ let activeEvent = null;
 let pendingRenewId = null;
 let logFilter = "all";
 let currentTab = "home";
+let sweetTier = "standard";
 let tableSort = { key: "revenue", dir: -1 };
 let libraryFilter = "all";
 let librarySort = "newest";
@@ -418,6 +421,13 @@ function createInitialState(difficultyId) {
     priceHikeDays: 0,
     priceAnchor: STARTING_MONTHLY_PRICE,
     adTier: false,
+    premiumSubs: 0,
+    premiumUnlocked: false,
+    premiumPrice: (CONFIG.tiers && CONFIG.tiers.premiumDefault) || 12,
+    premiumHikeDays: 0,
+    premiumAnchor: (CONFIG.tiers && CONFIG.tiers.premiumDefault) || 12,
+    premiumJustLaunched: false,
+    premiumLifted: false,
     trendsSeeded: false,
     localHits: {},
     risingStarHit: false,
@@ -563,21 +573,82 @@ function econ() {
   return CONFIG.economy || {};
 }
 
+function tierConfig() {
+  return CONFIG.tiers || {};
+}
+
+function freeLive() {
+  return ownedCount("free-tier") > 0;
+}
+
+function premiumLive() {
+  return !!(state && state.premiumUnlocked);
+}
+
+function standardSubscribers() {
+  return Math.max(0, paidSubscribers() - (premiumLive() ? (state.premiumSubs || 0) : 0));
+}
+
+function clampPremium() {
+  if (!state) return;
+  if (!state.premiumUnlocked) {
+    state.premiumSubs = 0;
+    return;
+  }
+  state.premiumSubs = roundSubscribers(clamp(state.premiumSubs || 0, 0, paidSubscribers()));
+}
+
+function defaultPremiumPrice() {
+  const tiers = tierConfig();
+  const gap = tiers.premiumMinGap || 2;
+  const wanted = tiers.premiumDefault || 12;
+  const standard = state && Number.isFinite(state.monthlyPrice) ? state.monthlyPrice : STARTING_MONTHLY_PRICE;
+  return clamp(roundCents(Math.max(wanted, standard + gap)), tiers.premiumMin || 4, tiers.premiumMax || 30);
+}
+
+function liveHitCount() {
+  const cap = tierConfig().premiumHitCap || 4;
+  const hits = titles.filter((title) => title.outcome === "hit" && titleContribution(title) > 0).length;
+  return Math.min(hits, cap);
+}
+
+function premiumShareTarget(standardPrice, premiumPrice, quality) {
+  if (!premiumLive()) return 0;
+  const tiers = tierConfig();
+  const q = quality == null ? currentQuality() : quality;
+  const gap = Math.max(0, premiumPrice - standardPrice - (tiers.premiumGapComfort || 0));
+  const raw = (tiers.premiumBaseShare || 0)
+    + (tiers.premiumQualityWeight || 0) * (q - (tiers.premiumQualityFloor || 0))
+    + (activeSports() ? (tiers.premiumSportsBonus || 0) : 0)
+    + (tiers.premiumHitBonus || 0) * liveHitCount()
+    + (tiers.premiumBrandWeight || 0) * ((state.brand - 50) / 50)
+    - (tiers.premiumGapPenalty || 0) * gap;
+  return clamp(raw, tiers.premiumShareMin || 0, tiers.premiumShareMax || 1);
+}
+
 function priceAttractiveness(monthlyPrice) {
   const rules = econ();
   return Math.pow((rules.anchorPrice || 8) / monthlyPrice, rules.pricePower || 0.85);
 }
 
-function churnRate(monthlyPrice, contentQuality, recommendationLevel = 0, serverLevelValue = 0) {
+function churnRate(monthlyPrice, contentQuality, recommendationLevel = 0, serverLevelValue = 0, hikeDays) {
   const rules = econ();
   const span = MAX_MONTHLY_PRICE - MIN_MONTHLY_PRICE;
   const priceLift = Math.pow((monthlyPrice - MIN_MONTHLY_PRICE) / span, rules.churnPower || 1.45);
   const base = (rules.churnBase || 0.0016) + priceLift * (rules.churnPrice || 0.028);
   const qualityRelief = 1 / (1 + Math.max(0, contentQuality - 1) * (rules.qualityRelief || 0.18));
   const buffering = BUFFERING_CHURN * Math.pow(0.5, serverLevelValue);
-  const hike = state && state.priceHikeDays > 0 ? (rules.hikeChurn || 0) : 0;
+  const hiking = hikeDays == null ? !!(state && state.priceHikeDays > 0) : hikeDays > 0;
+  const hike = hiking ? (rules.hikeChurn || 0) : 0;
   const rate = (base * qualityRelief + buffering + hike) * Math.pow(0.9, recommendationLevel);
   return clamp(rate, 0.001, rules.churnCap || 0.09);
+}
+
+function premiumChurnRate(premiumPrice, contentQuality, recommendationLevel, serverLevelValue) {
+  const tiers = tierConfig();
+  const effective = premiumPrice / (tiers.premiumPriceScale || 1.8);
+  const base = churnRate(effective, contentQuality, recommendationLevel, serverLevelValue, state ? state.premiumHikeDays || 0 : 0);
+  return base * (tiers.premiumChurnMult || 0.75);
 }
 
 function baseGrowth(subscribers) {
@@ -678,9 +749,15 @@ function rivalPressure(price, quality) {
 
 function companyValue() {
   const rules = econ();
+  const tiers = tierConfig();
   const recent = (state.profitHistory || []).slice(-30);
   const avg = recent.length ? recent.reduce((sum, value) => sum + value, 0) / recent.length : 0;
-  return avg * 365 * (rules.profitMultiple || 0.22) + paidSubscribers() * (rules.valuePerSub || 16) + state.cash + state.brand * (rules.brandValue || 0);
+  const per = rules.valuePerSub || 16;
+  const premium = premiumLive() ? (state.premiumSubs || 0) : 0;
+  const standard = Math.max(0, paidSubscribers() - premium);
+  const free = state.freeUsers || 0;
+  const subValue = standard * per + premium * per * (tiers.premiumValueMult || 1) + free * per * (tiers.freeValueMult || 0);
+  return avg * 365 * (rules.profitMultiple || 0.22) + subValue + state.cash + state.brand * (rules.brandValue || 0);
 }
 
 function empireGoals() {
@@ -772,8 +849,9 @@ function formatQuality(quality) {
   return Number.isInteger(quality) ? String(quality) : quality.toFixed(1);
 }
 
-function forecast(price, subs) {
+function forecast(price, subs, options) {
   const rules = econ();
+  const tiers = tierConfig();
   const paid = subs == null ? paidSubscribers() : subs;
   const quality = currentQuality();
   const marketing = currentMarketing();
@@ -790,26 +868,65 @@ function forecast(price, subs) {
   const achievementMod = 1 + achievements.size * 0.01;
   const sat = saturation(paid, price);
   const gap = rivalPressure(price, quality);
-  const adBoost = state.adTier ? (rules.adGrowth || 1) : 1;
+  const freeOn = freeLive();
+  const adBoost = freeOn ? (rules.adGrowth || 1) : 1;
   const organic = subscriberGrowth(paid, quality, marketing, price) * brandMod * effectMod * achievementMod * sat * gap * adBoost;
   const playerAppeal = appealOf(quality, marketing, price, state.brand);
   const rivalAppeal = rivals.reduce((sum, rival) => sum + appealOf(rival.quality, rival.marketing, rival.price, rival.brand), 0);
   const share = playerAppeal / (playerAppeal + rivalAppeal || 1);
   const newcomers = ((rules.newcomerBase || 4) + tam * (rules.newcomerTam || 0)) * share * sat;
-  const incoming = Math.max(0, organic + newcomers);
-  const leaving = paid * churn;
+  const grossPaid = Math.max(0, organic + newcomers);
+  const cannibal = freeOn ? grossPaid * (tiers.freeCannibalise || 0) : 0;
+  const paidSignups = Math.max(0, grossPaid - cannibal);
+  const premiumOn = premiumLive();
+  const premiumPrice = premiumOn
+    ? ((options && options.premiumPrice != null) ? Number(options.premiumPrice) : state.premiumPrice)
+    : 0;
+  const premiumCount = premiumOn ? clamp(state.premiumSubs || 0, 0, paid) : 0;
+  const standardCount = Math.max(0, paid - premiumCount);
+  const shareTarget = premiumOn ? premiumShareTarget(price, premiumPrice, quality) : 0;
+  const newPremium = paidSignups * shareTarget;
+  const newStandard = paidSignups - newPremium;
+  const premiumChurn = premiumOn
+    ? clamp(premiumChurnRate(premiumPrice, quality, recommendations, servers) + extraChurn, 0.001, rules.churnCap || 0.09)
+    : 0;
+  const leavingStandard = standardCount * churn;
+  const leavingPremium = premiumCount * premiumChurn;
+  const leaving = leavingStandard + leavingPremium;
+  let conversion = 0;
+  if (freeOn && freeUsers > 0) {
+    const qScale = Math.max(0.35, quality / (tiers.freeConvertQualityRef || 3));
+    const anchor = rules.anchorPrice || 8;
+    const priceScale = priceAttractiveness(price) / priceAttractiveness(anchor);
+    conversion = Math.min(freeUsers, freeUsers * (tiers.freeToStandardRate || 0) * qScale * priceScale);
+  }
+  let migration = 0;
+  if (premiumOn && !state.premiumJustLaunched) {
+    migration = (shareTarget * paid - premiumCount) * (tiers.premiumMigrationRate || 0);
+  }
   const effectRevenue = effects.reduce((sum, effect) => sum + (effect.revenuePerDay || 0), 0);
   const effectCost = effects.reduce((sum, effect) => sum + (effect.costPerDay || 0), 0);
-  const adRevenue = freeUsers * FREE_USER_AD_REVENUE;
-  const revenue = dailyRevenue(paid, price) + adRevenue + effectRevenue;
+  const adIncome = tiers.freeAdIncome != null ? tiers.freeAdIncome : FREE_USER_AD_REVENUE;
+  const adRevenue = freeUsers * adIncome;
+  const standardRevenue = standardCount * price / 30;
+  const premiumRevenue = premiumCount * premiumPrice / 30;
+  const revenue = standardRevenue + premiumRevenue + adRevenue + effectRevenue;
   const interest = dailyInterest(state.cash);
-  const costs = dailyCosts(paid, currentUpkeep()) + effectCost + revenue * (state.revenueShare || 0);
-  const netFree = freeNetChange(freeUsers, ownedCount("free-tier"), price, quality, recommendations, servers);
+  const per = rules.perSubCost || PER_SUBSCRIBER_RUNNING_COST;
+  const serve = standardCount * per
+    + premiumCount * per * (tiers.premiumServeCostMult || 1)
+    + (freeOn ? freeUsers * (tiers.freeServeCost || 0) : 0);
+  const costs = (rules.baseRunning || BASE_RUNNING_COST) + serve + currentUpkeep() * upkeepScale(paid) + interest + effectCost + revenue * (state.revenueShare || 0);
+  const baseFree = freeNetChange(freeUsers, freeOn ? ownedCount("free-tier") : 0, price, quality, recommendations, servers);
+  const netFree = baseFree + cannibal - conversion;
+  const incoming = paidSignups + conversion;
   return {
-    paid, quality, marketing, freeUsers, attractiveness, churn, incoming, leaving, revenue, costs, interest, adRevenue, netFree,
-    netPaid: incoming - leaving,
-    netCash: revenue - costs,
-    share,
+    paid, standardSubs: standardCount, premiumSubs: premiumCount, quality, marketing, freeUsers,
+    attractiveness, churn, premiumChurn, incoming, leaving, leavingStandard, leavingPremium,
+    newStandard, newPremium, conversion, migration, cannibal,
+    revenue, costs, interest, adRevenue, standardRevenue, premiumRevenue,
+    netFree, netPaid: incoming - leaving, netCash: revenue - costs, share,
+    premiumShare: shareTarget, premiumPrice,
   };
 }
 
@@ -840,6 +957,21 @@ function snapshot() {
     audience: paid + freeUsers,
     contentQuality: quality,
     monthlyPrice: state.monthlyPrice,
+    premiumPrice: state.premiumPrice,
+    premiumUnlocked: premiumLive(),
+    standardSubs: view.standardSubs,
+    premiumSubs: view.premiumSubs,
+    premiumShare: view.premiumShare,
+    standardRevenue: view.standardRevenue,
+    premiumRevenue: view.premiumRevenue,
+    newPremium: view.newPremium,
+    newStandard: view.newStandard,
+    migration: view.migration,
+    leavingPremium: view.leavingPremium,
+    conversion: view.conversion,
+    cannibal: view.cannibal,
+    premiumChurn: view.premiumChurn,
+    premiumLifted: !!state.premiumLifted,
     marketingMultiplier: marketing,
     contentUpkeep: upkeep,
     daysBelowLoseLine: state.daysBelowLoseLine,
@@ -920,6 +1052,7 @@ function shed(amount) {
 function addSubscribers(amount) {
   if (amount >= 0) distribute(amount);
   else shed(-amount);
+  clampPremium();
 }
 
 function nextTitleName(genre) {
@@ -1095,10 +1228,20 @@ function buyUpgrade(id) {
   }
   if (upgrade.action === "license") return !!signLicense(id);
   const count = ownedCount(id);
+  if (upgrade.once && count > 0) return false;
   const cost = upgradeCost(upgrade, count);
   if (!trySpend(cost)) return false;
   clearOverrides();
   owned[id] = count + 1;
+  if (id === "premium-tier") {
+    state.premiumUnlocked = true;
+    state.premiumJustLaunched = true;
+    state.premiumSubs = 0;
+    state.premiumHikeDays = 0;
+    state.premiumPrice = defaultPremiumPrice();
+    state.premiumAnchor = state.premiumPrice;
+    state.premiumLifted = false;
+  }
   pushEvent(state.day, [{ text: upgrade.event, tone: "neutral" }], "money");
   if (hasUi()) {
     flashStat("cash-value", -1);
@@ -1300,10 +1443,22 @@ function decayEffects() {
 function driftBrand(before) {
   let passive = 0;
   let reason = "";
-  if (state.monthlyPrice > 15) {
+  const tiers = tierConfig();
+  const standardLine = tiers.standardBrandPrice || 15;
+  const premiumLine = tiers.premiumBrandPrice || 26;
+  if (state.monthlyPrice > standardLine) {
     passive -= 0.25;
-    reason = "Price above $15";
-  } else if ((state.highCreditDays || 0) >= ((CONFIG.credit || {}).brandStrainDays || 12)) {
+    reason = `Price above $${standardLine}`;
+  }
+  if (premiumLive() && state.premiumPrice > premiumLine) {
+    passive -= 0.25;
+    reason = reason || `Premium above $${premiumLine}`;
+  }
+  if (passive < 0) {
+    changeBrand(passive, reason, false);
+    return;
+  }
+  if ((state.highCreditDays || 0) >= ((CONFIG.credit || {}).brandStrainDays || 12)) {
     passive -= 0.15;
     reason = "Investors nervous";
   } else if (before.netCash > 0) {
@@ -1492,6 +1647,7 @@ function applyEffect(effect) {
     effects.push({ id: `fx-dip-${state.day}`, label: "Rival launch", days: 12, growth: ratio > 0.5 ? 0.72 : 0.9 });
   } else if (effect.type === "price") {
     state.monthlyPrice = clamp(roundCents(state.monthlyPrice + effect.delta), MIN_MONTHLY_PRICE, MAX_MONTHLY_PRICE);
+    liftPremiumToGap();
   } else if (effect.type === "flag") {
     state[effect.flag] = true;
   } else if (effect.type === "marketing") {
@@ -1761,12 +1917,42 @@ function presentEvent(event) {
   enqueuePrompt({ type: "event", event });
 }
 
+function bestTierLine(view) {
+  const rows = [
+    ["Standard", view.standardRevenue || 0],
+    ["Premium", view.premiumRevenue || 0],
+    ["Free", view.adRevenue || 0],
+  ];
+  let best = rows[0];
+  rows.forEach((row) => {
+    if (row[1] > best[1]) best = row;
+  });
+  return `${best[0]} (${formatCash(best[1])}/day)`;
+}
+
+function tierTip(view) {
+  if (view.premiumUnlocked) {
+    const paid = view.subscribers || 0;
+    const share = paid > 0 ? (view.premiumSubs || 0) / paid : (view.premiumShare || 0);
+    const pct = Math.max(0, Math.round(share * 100));
+    if (share < 0.06) return `Premium share is ${pct}%: try a lower price or add a sports package.`;
+    const comfort = tierConfig().premiumGapComfort || 6;
+    if ((view.premiumPrice || 0) - view.monthlyPrice > comfort + 4) return "The Premium gap is wide. A smaller gap keeps more people on Premium.";
+    return "";
+  }
+  if (freeLive() && (view.freeUsers || 0) > (view.subscribers || 0) && (view.subscribers || 0) > 50) {
+    return "Free viewers outnumber paid subscribers. A lower Standard price converts more of them.";
+  }
+  return "";
+}
+
 function diagnose() {
   const expiring = titles.find((title) => title.kind === "licensed" && title.status === "released" && title.contractDays > 0 && title.contractDays <= 14);
   const view = snapshot();
+  const brandLine = tierConfig().standardBrandPrice || 15;
   if (state.cash < 0) return { problem: "The service is in debt.", tip: "Interest is daily. Debt only helps if the purchase earns more than it costs." };
   if (state.monthlyPrice <= 3) return { problem: "The price is very low.", tip: "Every subscriber costs money to serve. A slightly higher price can be the sweet spot." };
-  if (state.monthlyPrice >= 16) return { problem: "The price is high.", tip: "Growth and brand both cool above $15. Step down gradually." };
+  if (state.monthlyPrice >= brandLine + 1) return { problem: "The price is high.", tip: `Growth and brand both cool above $${brandLine}. Step down gradually.` };
   if (expiring) return { problem: `${expiring.name} expires in ${expiring.contractDays} days.`, tip: "Renew it, or commission something in that genre before the quality walks out." };
   if (view.churnRate > 0.01) return { problem: "Churn is high.", tip: "A lower price, more recommendations, or a hit will slow the exits." };
   if (state.brand < 35) return { problem: "The brand is dented.", tip: "A hit, an award, or a week without scandals will lift it." };
@@ -1796,6 +1982,8 @@ function maybeWeekly() {
     valueChange: companyValue() - valueThen,
     subChange: paidSubscribers() - then,
     best: bestTitle(),
+    bestTier: bestTierLine(snapshot()),
+    tierTip: tierTip(snapshot()),
     ...diagnose(),
   };
   if (simOffline || !hasUi()) {
@@ -1905,9 +2093,17 @@ function applyNumbers(before, offline) {
   const eff = offline ? 0.55 : 1;
   distribute(before.incoming * eff);
   shed(before.leaving * eff);
+  if (state.premiumUnlocked) {
+    state.premiumSubs = (state.premiumSubs || 0)
+      + (before.newPremium || 0) * eff
+      + (before.migration || 0) * eff
+      - (before.leavingPremium || 0) * eff;
+  }
+  clampPremium();
   state.freeUsers = roundSubscribers(Math.max(0, (state.freeUsers || 0) + before.netFree * eff));
   state.cash = roundCents(state.cash + before.netCash * eff);
   state.subscribers = paidSubscribers();
+  if (state.premiumJustLaunched) state.premiumJustLaunched = false;
 }
 
 function tick(options) {
@@ -1919,6 +2115,7 @@ function tick(options) {
   simOffline = offline;
   state.day += 1;
   if (state.priceHikeDays > 0) state.priceHikeDays -= 1;
+  if (state.premiumHikeDays > 0) state.premiumHikeDays -= 1;
   decayEffects();
   advanceProductions();
   advanceContracts();
@@ -1966,6 +2163,12 @@ function tick(options) {
     cash: state.cash,
     debt: Math.max(0, -state.cash),
     interest: before.interest || 0,
+    standardRevenue: before.standardRevenue || 0,
+    premiumRevenue: before.premiumRevenue || 0,
+    freeRevenue: before.adRevenue || 0,
+    standardSubs: before.standardSubs || 0,
+    premiumSubs: before.premiumSubs || 0,
+    freeViewers: before.freeUsers || 0,
   });
   if (analytics.length > 90) analytics.shift();
   checkEndings();
@@ -2163,6 +2366,20 @@ function reset() {
   return returnToMenu();
 }
 
+function liftPremiumToGap() {
+  if (!state || !premiumLive()) return false;
+  const tiers = tierConfig();
+  const floor = roundCents(state.monthlyPrice + (tiers.premiumMinGap || 2));
+  const next = clamp(floor, tiers.premiumMin || 4, tiers.premiumMax || 30);
+  if (state.premiumPrice + 0.001 < next) {
+    state.premiumPrice = next;
+    state.premiumAnchor = next;
+    state.premiumLifted = true;
+    return true;
+  }
+  return false;
+}
+
 function setMonthlyPrice(price, options) {
   const next = Number(price);
   if (!Number.isFinite(next)) return state.monthlyPrice;
@@ -2177,13 +2394,39 @@ function setMonthlyPrice(price, options) {
     }
     state.priceAnchor = state.monthlyPrice;
   }
-  if (previous <= 15 && state.monthlyPrice > 15) changeBrand(-1, "Price above $15");
+  const brandLine = tierConfig().standardBrandPrice || 15;
+  if (previous <= brandLine && state.monthlyPrice > brandLine) changeBrand(-1, `Price above $${brandLine}`);
+  liftPremiumToGap();
   syncView();
   if (!options || !options.quiet) {
     const view = snapshot();
     console.log(`${SERVICE_NAME} price ${formatPrice(state.monthlyPrice)}. Growth: ${view.growthLabel} / Churn: ${view.churnLabel}.`);
   }
   return state.monthlyPrice;
+}
+
+function setPremiumPrice(price, options) {
+  if (!state || !premiumLive()) return state ? state.premiumPrice : 0;
+  const tiers = tierConfig();
+  const floor = roundCents(state.monthlyPrice + (tiers.premiumMinGap || 2));
+  const next = Number(price);
+  if (!Number.isFinite(next)) return state.premiumPrice;
+  const previous = state.premiumPrice;
+  state.premiumPrice = clamp(roundCents(next), Math.max(tiers.premiumMin || 4, floor), tiers.premiumMax || 30);
+  state.premiumLifted = false;
+  const quiet = options && options.quiet;
+  if (!quiet) {
+    const anchor = state.premiumAnchor == null ? previous : state.premiumAnchor;
+    if (state.premiumPrice - anchor > (tiers.premiumHikeThreshold || 3)) {
+      state.premiumHikeDays = tiers.premiumHikeDays || 14;
+      pushEvent(state.day, [{ text: "A sharp Premium rise shook that tier. Churn spikes for 14 days.", tone: "warn" }], "money");
+    }
+    state.premiumAnchor = state.premiumPrice;
+  }
+  const brandLine = tiers.premiumBrandPrice || 26;
+  if (previous <= brandLine && state.premiumPrice > brandLine) changeBrand(-1, `Premium above $${brandLine}`);
+  syncView();
+  return state.premiumPrice;
 }
 
 function setContentQuality(quality) {
@@ -2229,7 +2472,7 @@ function pushEvent(day, parts, category) {
 
 function serialize() {
   return {
-    version: 4,
+    version: 5,
     state,
     owned,
     titles,
@@ -2315,6 +2558,24 @@ function applyLoaded(data) {
   state.debtRepaid = state.debtRepaid || 0;
   state.priceAnchor = Number.isFinite(state.priceAnchor) ? state.priceAnchor : state.monthlyPrice;
   state.adTier = !!state.adTier;
+  if (!data.version || data.version < 5) {
+    state.premiumUnlocked = false;
+    state.premiumSubs = 0;
+    state.premiumHikeDays = 0;
+    state.premiumJustLaunched = false;
+    state.premiumLifted = false;
+    state.premiumPrice = defaultPremiumPrice();
+    state.premiumAnchor = state.premiumPrice;
+  } else {
+    state.premiumUnlocked = !!state.premiumUnlocked;
+    state.premiumSubs = Number.isFinite(state.premiumSubs) ? state.premiumSubs : 0;
+    state.premiumHikeDays = state.premiumHikeDays || 0;
+    state.premiumJustLaunched = !!state.premiumJustLaunched;
+    state.premiumLifted = !!state.premiumLifted;
+    if (!Number.isFinite(state.premiumPrice)) state.premiumPrice = defaultPremiumPrice();
+    if (!Number.isFinite(state.premiumAnchor)) state.premiumAnchor = state.premiumPrice;
+  }
+  clampPremium();
   state.aListCast = state.aListCast || 0;
   state.extraCash = Number.isFinite(Number(state.extraCash)) ? clampExtraCash(state.extraCash) : 0;
   if (!Number.isFinite(state.creditFloor)) state.creditFloor = LEGACY_CREDIT[state.difficulty] || LEGACY_CREDIT.normal;
@@ -2554,6 +2815,7 @@ function closeOverlay(overlay) {
     overlay.hidden = true;
     releaseClock();
   } else if (id === "settings-modal") closeSettings();
+  else if (id === "pricing-modal") closePricing();
   else if (id === "welcome-modal") {
     overlay.hidden = true;
     welcomeHold = false;
@@ -2661,6 +2923,7 @@ function openWeekly(report) {
     ["Subscribers", formatSignedNumber(report.subChange, 0)],
     ["Company value", formatCash(report.valueChange || 0)],
     ["Best title", report.best],
+    ["Best tier", report.bestTier || "Standard"],
     ["Biggest problem", report.problem],
     ["Tip", report.tip],
   ].forEach(([label, value]) => {
@@ -2671,6 +2934,14 @@ function openWeekly(report) {
     row.append(strong, document.createTextNode(value));
     root.append(row);
   });
+  if (report.tierTip) {
+    const row = document.createElement("p");
+    row.className = "modal-line";
+    const strong = document.createElement("strong");
+    strong.textContent = "Tier tip: ";
+    row.append(strong, document.createTextNode(report.tierTip));
+    root.append(row);
+  }
   document.getElementById("weekly-modal").hidden = false;
 }
 
@@ -2737,12 +3008,17 @@ function guidePages() {
     {
       emoji: "📊",
       title: "The top bar",
-      body: "Cash is the money you have. Subscribers pay the monthly price. Day is the clock. Price is what you charge. Credit is how far you can go into debt. Brand is your reputation. A Head start badge appears when the run began with extra cash.",
+      body: "Cash is the money you have. Subscribers are paid plans only. Day is the clock. Pricing opens Standard, and Premium once you launch it. Credit is how far you can go into debt. Brand is your reputation. A Head start badge appears when the run began with extra cash.",
     },
     {
       emoji: "💰",
       title: "Price",
-      body: "A cheap price grows fast, but every subscriber costs money to serve, so profit gets thin. An expensive price grows slowly and raises churn. Raise the price gradually and find the sweet spot.",
+      body: "Standard is the price that drives growth. A cheap price grows fast, but every subscriber costs money to serve. An expensive price grows slowly and raises churn. Raise Standard gradually.",
+    },
+    {
+      emoji: "🎟️",
+      title: "Tiers",
+      body: "Free brings viewers and ad money. Standard is your main plan. Premium earns more per subscriber, but only if your library is strong.",
     },
     {
       emoji: "🎬",
@@ -3165,9 +3441,11 @@ function paint(view) {
   if (cashEl) cashEl.classList.toggle("is-negative", view.cash < 0);
   setText("subs-value", formatSubscribers(view.subscribers));
   setText("day-value", view.day.toLocaleString("en-US"));
-  setText("price-value", formatPrice(view.monthlyPrice));
+  setText("price-value", view.premiumUnlocked ? `${formatPrice(view.monthlyPrice)} | ${formatPrice(view.premiumPrice)}` : formatPrice(view.monthlyPrice));
   setText("price-outlook", `Growth: ${view.growthLabel} / Churn: ${view.churnLabel}`);
   paintSlider(view.monthlyPrice);
+  paintPricing(view);
+  paintTierMix(view);
   setText("tier-name", tierName(view.subscribers));
   setText("mode-label", difficulty().name);
   setText("variety-note", view.variety);
@@ -3190,7 +3468,7 @@ function paint(view) {
   if (split) {
     const showSplit = view.freeUsers > 0 || ownedCount("free-tier") > 0;
     split.hidden = !showSplit;
-    split.textContent = showSplit ? `Paid ${formatSubscribers(view.subscribers)} · Free ${formatSubscribers(view.freeUsers)}` : "";
+    split.textContent = showSplit ? `Paid ${formatSubscribers(view.subscribers)} · Free viewers ${formatSubscribers(view.freeUsers)}` : "";
   }
   const fill = document.getElementById("brand-fill");
   if (fill) {
@@ -3243,6 +3521,146 @@ function paintSlider(price) {
   slider.style.setProperty("--fill", `${pct}%`);
 }
 
+function demandWord(share) {
+  if (share >= 0.28) return "High";
+  if (share >= 0.14) return "Medium";
+  return "Low";
+}
+
+function paintRange(slider, price, min, max) {
+  if (!slider) return;
+  slider.min = String(min);
+  slider.max = String(max);
+  slider.step = "0.5";
+  if (document.activeElement !== slider) slider.value = String(price);
+  const current = Number(slider.value);
+  const span = Math.max(0.5, max - min);
+  slider.style.setProperty("--fill", `${((current - min) / span) * 100}%`);
+}
+
+function paintTierMix(view) {
+  const bar = document.getElementById("tier-mix-bar");
+  const legend = document.getElementById("tier-mix-legend");
+  if (!bar || !legend) return;
+  const standard = view.standardSubs || 0;
+  const premium = view.premiumUnlocked ? (view.premiumSubs || 0) : 0;
+  const free = view.freeUsers || 0;
+  const total = standard + premium + free || 1;
+  const parts = [
+    ["tier-std", "Standard", standard],
+    ["tier-prem", "Premium", premium],
+    ["tier-free", "Free", free],
+  ];
+  bar.replaceChildren();
+  legend.replaceChildren();
+  parts.forEach(([cls, name, value]) => {
+    const slice = document.createElement("span");
+    slice.className = cls;
+    slice.style.width = `${(value / total) * 100}%`;
+    bar.append(slice);
+    const item = document.createElement("span");
+    item.textContent = `${name} ${Math.round((value / total) * 100)}%`;
+    legend.append(item);
+  });
+}
+
+function paintLaunchButton(id, upgradeId, label) {
+  const button = document.getElementById(id);
+  if (!button || !state) return;
+  const upgrade = upgradeById(upgradeId);
+  const ownedNow = ownedCount(upgradeId) > 0;
+  if (ownedNow && (upgradeId !== "free-tier" || upgrade && upgrade.once)) {
+    button.hidden = true;
+    return;
+  }
+  if (upgradeId === "free-tier" && ownedNow) {
+    button.hidden = true;
+    return;
+  }
+  button.hidden = false;
+  const cost = upgradeCost(upgrade, 0);
+  const kind = payKind(cost);
+  button.disabled = state.status !== "playing" || kind === "over";
+  button.classList.toggle("buy-credit", kind === "credit");
+  if (kind === "over") button.textContent = "Over credit limit";
+  else if (kind === "credit") button.textContent = `${label} on credit · ${formatCash(cost)}`;
+  else button.textContent = `${label} · ${formatCash(cost)}`;
+}
+
+function paintPricing(view) {
+  if (!hasUi() || !view) return;
+  const tiers = tierConfig();
+  const freeOwned = freeLive();
+  const premiumOn = !!view.premiumUnlocked;
+  setText("free-viewers", `${Math.round(view.freeUsers || 0).toLocaleString("en-US")} viewers`);
+  const adRate = tiers.freeAdIncome != null ? tiers.freeAdIncome : FREE_USER_AD_REVENUE;
+  setText("free-income", `Ad income $${((view.freeUsers || 0) * adRate).toFixed(2)}/day`);
+  const freeLocked = document.getElementById("free-locked");
+  if (freeLocked) {
+    freeLocked.hidden = freeOwned;
+    freeLocked.textContent = "Locked";
+  }
+  const freeStats = document.getElementById("free-stats");
+  if (freeStats) freeStats.hidden = !freeOwned;
+  paintLaunchButton("launch-free", "free-tier", "Launch");
+  const freeButton = document.getElementById("launch-free");
+  if (freeButton && !freeOwned && payKind(upgradeCost(upgradeById("free-tier"), 0)) === "cash") freeButton.textContent = "Launch";
+  setText("standard-subs", `${Math.round(view.standardSubs || 0).toLocaleString("en-US")} subscribers`);
+  setText("standard-revenue", `Revenue/day $${(view.standardRevenue || 0).toFixed(2)}`);
+  setText("standard-churn", `Churn ${((view.churnRate || 0) * 100).toFixed(2)}%`);
+  const premiumBox = document.getElementById("premium-stats");
+  const premiumLocked = document.getElementById("premium-locked");
+  if (premiumBox) premiumBox.hidden = !premiumOn;
+  if (premiumLocked) premiumLocked.hidden = premiumOn;
+  paintLaunchButton("launch-premium", "premium-tier", "Launch Premium");
+  const premiumButton = document.getElementById("launch-premium");
+  if (premiumButton && !premiumOn) {
+    const cost = upgradeCost(upgradeById("premium-tier"), 0);
+    const kind = payKind(cost);
+    if (kind === "cash") premiumButton.textContent = `Launch Premium - ${formatCash(cost)}`;
+    else if (kind === "credit") premiumButton.textContent = `Launch Premium - ${formatCash(cost)} on credit`;
+  }
+  if (premiumOn) {
+    const floor = roundCents(view.monthlyPrice + (tiers.premiumMinGap || 2));
+    const slider = document.getElementById("premium-slider");
+    paintRange(slider, view.premiumPrice, Math.max(tiers.premiumMin || 4, floor), tiers.premiumMax || 30);
+    const paid = view.subscribers || 0;
+    const shareNow = paid > 0 ? (view.premiumSubs || 0) / paid : 0;
+    setText("premium-subs", `${Math.round(view.premiumSubs || 0).toLocaleString("en-US")} subscribers`);
+    setText("premium-revenue", `Revenue/day $${(view.premiumRevenue || 0).toFixed(2)}`);
+    setText("premium-churn", `Churn ${((view.premiumChurn || 0) * 100).toFixed(2)}%`);
+    setText("premium-share", `Share of paid subs ${Math.round(shareNow * 100)}%`);
+    const word = demandWord(view.premiumShare || 0);
+    const hint = word === "High"
+      ? "Premium demand: High."
+      : `Premium demand: ${word}. Better content, a sports package and a lower price gap would raise it.`;
+    setText("premium-hint", hint);
+    const note = document.getElementById("premium-note");
+    if (note) {
+      note.hidden = !view.premiumLifted;
+      note.textContent = `Premium price rose to stay $${(tiers.premiumMinGap || 2).toFixed(0)} above Standard.`;
+    }
+  }
+  const paidCount = Math.round(view.subscribers || 0).toLocaleString("en-US");
+  const freeCount = Math.round(view.freeUsers || 0).toLocaleString("en-US");
+  setText("tier-total", `Paid subs ${paidCount} | Free viewers ${freeCount} | Revenue/day ${formatCash(view.dailyRevenue || 0)}`);
+}
+
+function openPricing() {
+  if (!hasUi() || !state || state.status === "menu" || state.status === "setup") return;
+  holdClock();
+  paintPricing(snapshot());
+  const modal = document.getElementById("pricing-modal");
+  if (modal) modal.hidden = false;
+}
+
+function closePricing() {
+  const modal = document.getElementById("pricing-modal");
+  if (modal) modal.hidden = true;
+  releaseClock();
+  saveGame();
+}
+
 function updateUpgradeCards(view) {
   UPGRADES.forEach((upgrade) => {
     const card = document.querySelector(`[data-upgrade="${upgrade.id}"]`);
@@ -3250,7 +3668,7 @@ function updateUpgradeCards(view) {
     const count = upgrade.action === "library" ? ownedMoviePacks() : ownedCount(upgrade.id);
     let cost = upgrade.action === "commission" ? 0 : upgradeCost(upgrade);
     const live = upgrade.action === "license" && activeLicense(upgrade.id);
-    const soldOut = upgrade.action === "library" && !nextMoviePack();
+    const soldOut = (upgrade.action === "library" && !nextMoviePack()) || (upgrade.once && count > 0);
     const needsSlot = (upgrade.action === "license" || upgrade.action === "library") && !live && !soldOut && libraryFull();
     const kind = upgrade.action === "commission" || live || soldOut || needsSlot ? "cash" : payKind(cost);
     const blocked = view.status !== "playing" || live || soldOut || needsSlot || kind === "over";
@@ -3489,7 +3907,23 @@ function renderAnalytics() {
     { color: "#E50914", values: analytics.map((row) => row.churn) },
   ]);
   drawRegionBar(document.getElementById("chart-regions"));
+  drawStacked(document.getElementById("chart-tier-revenue"), [
+    { color: "#E50914", values: analytics.map((row) => row.standardRevenue || 0) },
+    { color: "#F5A623", values: analytics.map((row) => row.premiumRevenue || 0) },
+    { color: "#4C6FFF", values: analytics.map((row) => row.freeRevenue || 0) },
+  ]);
+  drawStacked(document.getElementById("chart-tier-subs"), [
+    { color: "#E50914", values: analytics.map((row) => row.standardSubs || 0) },
+    { color: "#F5A623", values: analytics.map((row) => row.premiumSubs || 0) },
+    { color: "#4C6FFF", values: analytics.map((row) => row.freeViewers || 0) },
+  ]);
   drawSweetSpot(document.getElementById("chart-sweet"));
+  document.querySelectorAll("[data-sweet]").forEach((button) => {
+    const on = button.dataset.sweet === sweetTier;
+    button.classList.toggle("is-on", on);
+    button.setAttribute("aria-pressed", on ? "true" : "false");
+    if (button.dataset.sweet === "premium") button.disabled = !premiumLive();
+  });
   const body = document.getElementById("content-body");
   if (!body) return;
   const rows = contentRows().sort((a, b) => {
@@ -3540,29 +3974,89 @@ function drawRegionBar(canvas) {
 
 function drawSweetSpot(canvas) {
   if (!canvas) return;
+  const tiers = tierConfig();
+  const premiumMode = sweetTier === "premium" && premiumLive();
   const prices = [];
-  for (let price = 2; price <= 20; price += 1) prices.push(price);
-  const values = prices.map((price) => estimateProfit(price));
-  drawLines(canvas, [{ color: "#F5A623", values }]);
+  if (premiumMode) {
+    const floor = Math.ceil(state.monthlyPrice + (tiers.premiumMinGap || 2));
+    const min = Math.max(tiers.premiumMin || 4, floor);
+    const max = tiers.premiumMax || 30;
+    for (let price = min; price <= max; price += 1) prices.push(price);
+  } else {
+    for (let price = 2; price <= 20; price += 1) prices.push(price);
+  }
+  if (!prices.length) return;
+  const values = prices.map((price) => (premiumMode ? estimateProfit(state.monthlyPrice, price) : estimateProfit(price)));
+  drawLines(canvas, [{ color: premiumMode ? "#F5A623" : "#E50914", values }]);
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
   const rect = canvas.getBoundingClientRect();
   const width = rect.width || canvas.width;
-  const index = clamp(Math.round(state.monthlyPrice) - 2, 0, prices.length - 1);
-  const x = 10 + (index / (prices.length - 1)) * (width - 20);
-  ctx.strokeStyle = "#E50914";
+  const current = premiumMode ? state.premiumPrice : state.monthlyPrice;
+  let index = 0;
+  prices.forEach((price, i) => {
+    if (Math.abs(price - current) < Math.abs(prices[index] - current)) index = i;
+  });
+  const x = 10 + (index / Math.max(1, prices.length - 1)) * (width - 20);
+  ctx.strokeStyle = "#FFFFFF";
   ctx.beginPath();
   ctx.moveTo(x, 8);
   ctx.lineTo(x, (rect.height || 88) - 8);
   ctx.stroke();
 }
 
-function estimateProfit(price) {
-  const projected = forecast(price);
-  const horizon = econ().subscriberHorizonValue || 36;
-  const growth = projected.netPaid * horizon;
-  if (projected.netCash < 0) return projected.netCash * 30 + Math.min(0, growth);
-  return projected.netCash + growth;
+function estimateProfit(price, premiumPrice) {
+  const scoreOf = (projected) => {
+    const horizon = econ().subscriberHorizonValue || 36;
+    const growth = projected.netPaid * horizon;
+    if (projected.netCash < 0) return projected.netCash * 30 + Math.min(0, growth);
+    return projected.netCash + growth;
+  };
+  if (premiumPrice == null || !premiumLive()) return scoreOf(forecast(price));
+  const savedSubs = state.premiumSubs;
+  const savedFlag = state.premiumJustLaunched;
+  const share = premiumShareTarget(price, premiumPrice);
+  state.premiumSubs = paidSubscribers() * share;
+  state.premiumJustLaunched = true;
+  const projected = forecast(price, null, { premiumPrice });
+  state.premiumSubs = savedSubs;
+  state.premiumJustLaunched = savedFlag;
+  return scoreOf(projected);
+}
+
+function drawStacked(canvas, seriesList) {
+  if (!canvas || !hasUi()) return;
+  const ctx = prepareCanvas(canvas);
+  if (!ctx) return;
+  const { width, height } = ctx._size;
+  ctx.clearRect(0, 0, width, height);
+  const len = seriesList.reduce((max, series) => Math.max(max, series.values.length), 0);
+  if (!len) return;
+  const totals = [];
+  for (let i = 0; i < len; i += 1) {
+    totals[i] = seriesList.reduce((sum, series) => sum + Math.max(0, series.values[i] || 0), 0);
+  }
+  const max = Math.max(...totals, 1);
+  const xAt = (index) => (len === 1 ? width / 2 : 8 + (index / (len - 1)) * (width - 16));
+  const yAt = (value) => height - 8 - (Math.max(0, value) / max) * (height - 16);
+  let floor = new Array(len).fill(0);
+  seriesList.forEach((series) => {
+    const next = floor.map((value, index) => value + Math.max(0, series.values[index] || 0));
+    ctx.beginPath();
+    for (let i = 0; i < len; i += 1) {
+      const x = xAt(i);
+      const y = yAt(next[i]);
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    for (let i = len - 1; i >= 0; i -= 1) ctx.lineTo(xAt(i), yAt(floor[i]));
+    ctx.closePath();
+    ctx.fillStyle = series.color;
+    ctx.globalAlpha = 0.9;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    floor = next;
+  });
 }
 
 function prepareCanvas(canvas) {
@@ -4141,6 +4635,29 @@ function bindUi() {
     setMonthlyPrice(event.target.value);
     saveGame();
   });
+  const premiumSlider = document.getElementById("premium-slider");
+  if (premiumSlider) {
+    premiumSlider.addEventListener("input", (event) => setPremiumPrice(event.target.value, { quiet: true }));
+    premiumSlider.addEventListener("change", (event) => {
+      setPremiumPrice(event.target.value);
+      saveGame();
+    });
+  }
+  const priceChip = document.getElementById("price-chip");
+  if (priceChip) priceChip.addEventListener("click", openPricing);
+  const pricingClose = document.getElementById("pricing-close");
+  if (pricingClose) pricingClose.addEventListener("click", closePricing);
+  const launchFree = document.getElementById("launch-free");
+  if (launchFree) launchFree.addEventListener("click", () => buyUpgrade("free-tier"));
+  const launchPremium = document.getElementById("launch-premium");
+  if (launchPremium) launchPremium.addEventListener("click", () => buyUpgrade("premium-tier"));
+  document.querySelectorAll("[data-sweet]").forEach((button) => {
+    button.addEventListener("click", () => {
+      if (button.dataset.sweet === "premium" && !premiumLive()) return;
+      sweetTier = button.dataset.sweet || "standard";
+      if (currentTab === "analytics") renderAnalytics();
+    });
+  });
   document.querySelector(".tabs").addEventListener("click", (event) => {
     const tab = event.target.closest(".tab");
     if (tab) showTab(tab.dataset.tab);
@@ -4369,7 +4886,7 @@ function bindUi() {
 }
 
 function gameVersion() {
-  return (CONFIG && CONFIG.gameVersion) || "3.41";
+  return (CONFIG && CONFIG.gameVersion) || "4.0";
 }
 
 function releaseDateLabel() {
@@ -5765,23 +6282,88 @@ function autoPlayContent() {
   }
 }
 
+function balanceRow(strategy, extra) {
+  return {
+    strategy: String(strategy),
+    extra,
+    status: state.status,
+    day: state.day,
+    subscribers: Math.round(paidSubscribers()),
+    premium: Math.round(state.premiumSubs || 0),
+    free: Math.round(state.freeUsers || 0),
+    value: Math.round(companyValue()),
+    cash: Math.round(state.cash),
+    price: state.monthlyPrice,
+    premiumPrice: state.premiumUnlocked ? state.premiumPrice : 0,
+  };
+}
+
+function seededBalance(extra, play) {
+  let seed = 24681357;
+  rng = function seeded() {
+    seed = (seed * 1664525 + 1013904223) % 4294967296;
+    return seed / 4294967296;
+  };
+  beginGame("normal", { extraCash: extra });
+  state.nextEventDay = Infinity;
+  const maxDays = 2600;
+  for (let step = 0; step < maxDays && state.status === "playing"; step += 1) {
+    play();
+    tick({ log: false });
+  }
+}
+
+function adaptStandardPrice() {
+  let bestPrice = state.monthlyPrice;
+  let bestScore = -Infinity;
+  for (let price = 2; price <= 20; price += 1) {
+    const score = estimateProfit(price);
+    if (score > bestScore) {
+      bestScore = score;
+      bestPrice = price;
+    }
+  }
+  const moved = clamp(state.monthlyPrice + clamp(bestPrice - state.monthlyPrice, -2, 2), 2, 20);
+  state.monthlyPrice = moved;
+  state.priceAnchor = moved;
+  state.priceHikeDays = 0;
+  liftPremiumToGap();
+}
+
+function adaptPremiumPrice() {
+  if (!state.premiumUnlocked) return;
+  const tiers = tierConfig();
+  const floor = state.monthlyPrice + (tiers.premiumMinGap || 2);
+  const max = tiers.premiumMax || 30;
+  let bestPrice = state.premiumPrice;
+  let bestScore = -Infinity;
+  for (let price = Math.ceil(floor); price <= max; price += 1) {
+    const score = estimateProfit(state.monthlyPrice, price);
+    if (score > bestScore) {
+      bestScore = score;
+      bestPrice = price;
+    }
+  }
+  const moved = clamp(state.premiumPrice + clamp(bestPrice - state.premiumPrice, -2, 2), floor, max);
+  state.premiumPrice = roundCents(moved);
+  state.premiumAnchor = state.premiumPrice;
+  state.premiumHikeDays = 0;
+}
+
 function balanceTest(extraCash) {
   const savedRng = rng;
   const extra = clampExtraCash(extraCash || 0);
-  const strategies = [2, 5, 10, 20, "adaptive", "spend"];
-  const report = strategies.map((strategy) => {
-    let seed = 24681357;
-    rng = function seeded() {
-      seed = (seed * 1664525 + 1013904223) % 4294967296;
-      return seed / 4294967296;
-    };
-    beginGame("normal", { extraCash: extra });
-    state.nextEventDay = Infinity;
-    const fixed = strategy === "adaptive" || strategy === "spend" ? 8 : Number(strategy);
-    state.monthlyPrice = fixed;
-    state.priceAnchor = fixed;
-    const maxDays = 2600;
-    for (let step = 0; step < maxDays && state.status === "playing"; step += 1) {
+  const classic = [2, 5, 10, 20, "adaptive", "spend"];
+  const classicReport = classic.map((strategy) => {
+    seededBalance(extra, () => {
+      const fixed = strategy === "adaptive" || strategy === "spend" ? 8 : Number(strategy);
+      if (state.priceAnchor == null || (state.day === 0 && strategy !== "adaptive" && strategy !== "spend")) {
+        state.monthlyPrice = fixed;
+      }
+      if (state.day === 0) {
+        state.monthlyPrice = fixed;
+        state.priceAnchor = fixed;
+      }
       if (strategy === "adaptive" && state.day % 14 === 0) {
         let bestPrice = state.monthlyPrice;
         let bestScore = -Infinity;
@@ -5803,22 +6385,48 @@ function balanceTest(extraCash) {
       }
       if (strategy === "spend") spendAllDeals();
       else autoPlayContent();
-      tick({ log: false });
-    }
-    return {
-      strategy: String(strategy),
-      extra,
-      status: state.status,
-      day: state.day,
-      subscribers: Math.round(paidSubscribers()),
-      value: Math.round(companyValue()),
-      cash: Math.round(state.cash),
-      price: state.monthlyPrice,
-    };
+    });
+    return balanceRow(strategy, extra);
+  });
+  const extras = ["standard-free", "standard-premium", "all-three", "premium-low", "premium-high", "free-only"].map((strategy) => {
+    seededBalance(extra, () => {
+      if (state.day === 0) {
+        const open = strategy === "free-only" ? 20 : 8;
+        state.monthlyPrice = open;
+        state.priceAnchor = open;
+      }
+      const adapt = strategy !== "free-only";
+      if (adapt && state.day % 14 === 0) adaptStandardPrice();
+      if (strategy === "free-only") {
+        state.monthlyPrice = 20;
+        state.priceAnchor = 20;
+        state.priceHikeDays = 0;
+      }
+      if (strategy === "standard-free" || strategy === "all-three" || strategy === "free-only") {
+        if (state.day >= 4 && ownedCount("free-tier") === 0) buyUpgrade("free-tier");
+      }
+      if (strategy === "standard-premium" || strategy === "all-three" || strategy === "premium-low" || strategy === "premium-high") {
+        if (state.day >= 20 && !state.premiumUnlocked) buyUpgrade("premium-tier");
+      }
+      if (state.premiumUnlocked && state.day % 14 === 0) {
+        if (strategy === "premium-low") {
+          const floor = roundCents(state.monthlyPrice + (tierConfig().premiumMinGap || 2));
+          state.premiumPrice = floor;
+          state.premiumAnchor = floor;
+          state.premiumHikeDays = 0;
+        } else if (strategy === "premium-high") {
+          state.premiumPrice = tierConfig().premiumMax || 30;
+          state.premiumAnchor = state.premiumPrice;
+          state.premiumHikeDays = 0;
+        } else if (strategy === "standard-premium" || strategy === "all-three") adaptPremiumPrice();
+      }
+      autoPlayContent();
+    });
+    return balanceRow(strategy, extra);
   });
   rng = savedRng;
   beginGame("normal");
-  return report;
+  return classicReport.concat(extras);
 }
 
 const api = {
@@ -5834,6 +6442,7 @@ const api = {
   ACHIEVEMENTS,
   getState: snapshot,
   setMonthlyPrice,
+  setPremiumPrice,
   setContentQuality,
   setMarketingMultiplier,
   setContentUpkeep,

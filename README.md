@@ -14,7 +14,7 @@ One in-game day lasts 5 real seconds at 1× (`secondsPerDay` in `config.js`), 2.
 
 Setup offers Easy, Normal, and Hard, plus a Sandbox checkbox (no defeat, no random events), an Extra starting cash slider, and an optional service name. Easy starts with $40,000 and two rivals. Normal starts with $20,000 and three. Hard starts with $12,000 and four, and bad events hit harder. The slider adds $0 to $1,000,000 in steps of $10,000, on top of that cash, and remembers the last choice. It does not change the credit limit. A head start above $0 shows a badge and multiplies the final score by 1 minus extra cash / $2,000,000, never below 0.5. Sandbox ignores that multiplier. Tick **Don't show this again** on How to Play to skip that guide on later new games.
 
-The top bar shows cash, a credit bar, a Head start badge when extra cash was added, subscribers, the day, and a monthly price slider ($2.00–$20.00). Cash turns red and shows an In debt chip when it is negative. A purchase you can afford in cash is Buy. A purchase that fits inside the credit limit is Buy on credit and shows the balance after. Anything past the limit stays grey. The first time you go into debt, the game explains daily interest. Rising stats flash green and show a `+` change. Falling stats flash red and show a `-` change. The slider line reads `Growth: High / Medium / Low` and `Churn: High / Medium / Low`. A jump of more than $2 raises churn for 14 days. An optional ad-supported tier sits under the slider. Brand sits under the service name, with the subscriber hero, milestone bar, crowd of TV icons, market-share bar, and the Road to Empire meters. Timed effects show as chips with days remaining.
+The top bar shows cash, a credit bar, a Head start badge when extra cash was added, subscribers, the day, and a Pricing chip. The chip shows the Standard price, and the Premium price once that tier is launched. Cash turns red and shows an In debt chip when it is negative. A purchase you can afford in cash is Buy. A purchase that fits inside the credit limit is Buy on credit and shows the balance after. Anything past the limit stays grey. The first time you go into debt, the game explains daily interest. Rising stats flash green and show a `+` change. Falling stats flash red and show a `-` change. The Pricing panel reads `Growth: High / Medium / Low` and `Churn: High / Medium / Low` on Standard. A jump of more than $2 on Standard raises churn for 14 days. Free with ads and Premium are launched from that panel or the upgrade list. Brand sits under the service name, with the subscriber hero, milestone bar, crowd of TV icons, market-share bar, tier mix, and the Road to Empire meters. Timed effects show as chips with days remaining.
 
 Buy growth, retention, and platform upgrades on the left. Each repeat purchase raises that upgrade's next price by 15%. The Content desk licenses famous titles or creates an original. Sports packages are contracts: Football, Basketball, Tennis, and Motorsport.
 
@@ -22,7 +22,7 @@ The right side has Home, Analytics, Regions, Rivals, and Trophies. Home keeps th
 
 Reset asks for confirmation, then returns to the title screen and clears the save. The footer reads "Created by OJ Spenny Gaming" on the dashboard, the title screen, How to Play, and the win screen.
 
-The game saves to `localStorage` every 10 seconds, and also when you buy, release the price slider, leave the page, or win or lose. Older saves still load. Continue is the only path that catches up time away, up to five minutes at reduced efficiency, and that catch-up does not advance a bankruptcy countdown or the empire hold. Milestones you already passed do not pop up again after a reload. Settings can export or import a save, replay How to Play, reset the tutorial, and refresh the catalogue.
+The game saves to `localStorage` every 10 seconds, and also when you buy, release a price slider, leave the page, or win or lose. Older saves still load. Existing paid subscribers become Standard, and Premium starts locked. Continue is the only path that catches up time away, up to five minutes at reduced efficiency, and that catch-up does not advance a bankruptcy countdown or the empire hold. Milestones you already passed do not pop up again after a reload. Settings can export or import a save, replay How to Play, reset the tutorial, and refresh the catalogue.
 
 ## Catalogue
 
@@ -40,14 +40,14 @@ Rivals share the pool of new viewers with you. The leaderboard shows rank, subsc
 
 You start in the UK. Europe, North America, Asia-Pacific, and Latin America can be unlocked. Without a localisation upgrade, growth in that region is halved. The subscriber total is the sum of the regions.
 
-Brand runs from 0 to 100. It moves growth and the value of the company. Hits and awards raise it. Flops, a price above $15, and heavy credit use lower it.
+Brand runs from 0 to 100. It moves growth and the value of the company. Hits and awards raise it. Flops, a Standard price above $15, a Premium price above $26, and heavy credit use lower it.
 
 Trophies sit on the shelf. Each one adds 1% growth for the rest of the run. Win, lose, or sell, and the score is stored with the top five for that difficulty. Each saved score keeps its head start amount.
 
 ## Upgrades
 
-- **Growth** — social, TV, and the mobile app raise the marketing multiplier.
-- **Retention** — recommendations cut churn by 10% each time. The free ad-supported tier adds free viewers (about $0.03 per free viewer per day) and a small growth boost. Free viewers are counted separately and do not pay the monthly price.
+- **Growth** — social, TV, and the mobile app raise the marketing multiplier. Launch Premium tier ($15,000, once) opens a second paid price.
+- **Retention** — recommendations cut churn by 10% each time. The free ad-supported tier adds free viewers (about $0.03 per free viewer per day) and a small growth boost. A little of that is spent serving them. Some free viewers upgrade to Standard, and while Free is live a share of new paid signups arrive as free viewers instead. Free viewers are counted separately and do not pay a monthly price.
 - **Platform** — faster servers halve the buffering churn penalty each time they are bought. The churn line keeps the word "buffering" until that penalty is under 0.1%.
 
 ## Economy
@@ -58,18 +58,18 @@ Starting position on Normal:
 - Subscribers: 100, all in the UK
 - Content quality: 1
 - Brand: 50
-- Monthly price: $5.00 (clamped between $2 and $20)
+- Standard price: $5.00 (clamped between $2 and $20). Premium, once launched, starts at $12 and stays at least $2 above Standard, up to $30.
 
 Each day:
 
-- Subscription revenue = paying subscribers × (monthly price / 30). The ad-supported tier blends in a cheaper rate.
+- Daily revenue = Standard subscribers × (Standard price / 30) + Premium subscribers × (Premium price / 30) + free viewers × about $0.03.
 - Serving each subscriber costs money every day, so a $2 price can lose money as the audience grows.
 - Content upkeep rises as the audience gets larger.
 - Growth is capped by a price-sensitive share of the regions you have unlocked.
 - Churn rises with price, falls with content quality and recommendations, and includes a buffering penalty until servers catch up.
 - Daily costs = running costs + scaled content upkeep + interest while cash is negative.
 - Credit starts at $150,000 on Easy, $100,000 on Normal, and $60,000 on Hard, then grows with recent revenue and brand. Sandbox starts at $150,000. Interest is 0.1% of the overdraft per day, and 0.15% on Hard. Older saves keep the credit floor they started with.
-- Company value = average daily profit over the last 30 days × 365 × a multiple, plus subscribers × value per subscriber, plus cash, plus brand × brand value. Negative cash is the debt, and it is not subtracted twice.
+- Company value = average daily profit over the last 30 days × 365 × a multiple, plus Standard subscribers × value per subscriber, plus Premium subscribers × 1.5 × that value, plus free viewers × 0.1 × that value, plus cash, plus brand × brand value. Negative cash is the debt, and it is not subtracted twice.
 
 Milestones are 1,000 (Local Player), 10,000 (Regional Streamer), 100,000 (National Contender), 1,000,000 (Global Contender), and 5,000,000 (Industry Leader). None of those is the win.
 
