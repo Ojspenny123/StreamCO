@@ -10,7 +10,7 @@ The product name lives in one place: `SERVICE_NAME` at the top of `game.js`. Tun
 
 Open the live site, or `index.html` in a browser. The clock does not run on load. A new game goes Title, then Setup, then How to Play, then **Let's go!**. Continue appears only when a save exists, and that is when a saved run resumes.
 
-One real second is one in-game day at 1×. Pause, 2×, and 4× sit in the top bar. Space pauses. Keys 1, 2, and 3 set 1×, 2×, and 4×. The game also pauses when the browser tab is hidden. **?** in the top bar reopens How to Play and pauses the run.
+One in-game day lasts 5 real seconds at 1× (`secondsPerDay` in `config.js`), 2.5 seconds at 2×, and 1.25 seconds at 4×. Pause, 2×, and 4× sit in the top bar. Space pauses. Keys 1, 2, and 3 set 1×, 2×, and 4×, and choosing a speed while paused resumes at that speed. Pause is a slim banner: the clock stops, and you can still buy content, change the price, and use the dashboards. The game also pauses when the browser tab is hidden, and it resumes when you come back unless you paused yourself. **?** in the top bar reopens How to Play and pauses the run, then restores the previous pause state. Decision popups pause the clock the same way. Continue loads a save already paused. A new game starts running.
 
 Setup offers Easy, Normal, and Hard, plus a Sandbox checkbox (no defeat, no random events) and an optional service name. Easy starts with $20,000 and two rivals. Normal starts with $10,000 and three. Hard starts with $6,000 and four, and bad events hit harder. Tick **Don't show this again** on How to Play to skip that guide on later new games.
 
@@ -73,7 +73,7 @@ Each day:
 
 Milestones are 1,000 (Local Player), 10,000 (Regional Streamer), 100,000 (National Contender), 1,000,000 (Global Contender), and 5,000,000 (Industry Leader). None of those is the win.
 
-Streaming Empire requires holding all three goals for 30 days. On Normal that is $150,000,000 company value, 5,000,000 subscribers, and a healthy business: profitable for 60 days with debt under 25% of the credit limit. Easy is $50,000,000 and 2,000,000 subscribers. Hard is $400,000,000 and 10,000,000. A Normal run at 1× is aimed at roughly 20 to 30 minutes. Sandbox still charges interest and can reach the empire, and it does not go bankrupt.
+Streaming Empire requires holding all three goals for 30 days. On Normal that is $85,000,000 company value, 2,800,000 subscribers, and a healthy business: profitable for 60 days with debt under 25% of the credit limit. Easy is $28,000,000 and 1,200,000 subscribers. Hard is $220,000,000 and 5,600,000. A Normal run at 1× is aimed at roughly 45 to 60 minutes, and it should not be winnable in under about 20 minutes. Sandbox still charges interest and can reach the empire, and it does not go bankrupt. Time away is caught up for at most five real minutes, which is 60 game days at the 5-second day.
 
 Bankruptcy starts when cash falls below minus the credit limit. You have 30 days to climb back. The countdown resets if you do. Sandbox has no countdown. The loss screen offers Try again.
 
@@ -97,3 +97,7 @@ StreamCo.balanceTest()
 ```
 
 `setContentQuality`, `setMarketingMultiplier`, and `setContentUpkeep` still override the formulas until the next purchase or reload. Owned upgrades are what get saved.
+
+## Releases
+
+Every production deploy bumps `gameVersion` and `releaseDate` in `config.js`. Add the same notes to `CHANGELOG.md` and `changelog.js`. Put the version in the commit message (`v3.4: ...`). Create and push the matching git tag (`v3.4`). Update the `?v=` query on `style.css`, `config.js`, `changelog.js`, and `game.js` in `index.html`, and the `<title>` text, by hand. Use a patch bump for a fix (`3.4` to `3.4.1`) and a minor bump for a feature (`3.4` to `3.5`) unless a version was specified. Do not deploy without the changelog entry. The live version is read from `config.js`. Nothing else in the game should hard-code it.

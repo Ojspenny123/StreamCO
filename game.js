@@ -10,7 +10,6 @@ const STARTING_SUBSCRIBERS = 100;
 const STARTING_MONTHLY_PRICE = 5;
 const MIN_MONTHLY_PRICE = 2;
 const MAX_MONTHLY_PRICE = 20;
-const TICK_MS = 1000;
 const SAVE_EVERY_MS = 10000;
 const SAVE_KEY = "streamco-save-v2";
 const SAVE_KEY_V1 = "streamco-save-v1";
@@ -167,6 +166,9 @@ let qualityOverride = null;
 let marketingOverride = null;
 let upkeepOverride = null;
 let timerId = null;
+let lastClockNow = 0;
+let dayFraction = 0;
+let glide = null;
 let saveTimer = null;
 let simOffline = false;
 let offlineNotes = [];
@@ -1902,12 +1904,23 @@ function tick(options) {
   return after;
 }
 
+function offlineDayLimit() {
+  const seconds = Number(CONFIG.secondsPerDay) || 5;
+  return Math.max(1, Math.floor(300 / seconds));
+}
+
+function missedDays(savedAt) {
+  const seconds = Number(CONFIG.secondsPerDay) || 5;
+  const elapsed = Math.max(0, (Date.now() - (savedAt || Date.now())) / 1000);
+  return Math.max(0, Math.min(offlineDayLimit(), Math.floor(elapsed / seconds)));
+}
+
 function catchUp(days) {
   const startCash = state.cash;
   const startSubs = paidSubscribers();
   const before = new Set(achievements);
   offlineNotes = [];
-  const count = Math.max(0, Math.min(300, Math.floor(days)));
+  const count = Math.max(0, Math.min(offlineDayLimit(), Math.floor(days)));
   for (let i = 0; i < count && state.status === "playing"; i += 1) tick({ log: false, offline: true });
   return {
     days: count,
@@ -1936,17 +1949,69 @@ function logDay(before, after) {
   console.log(`${displayName()} Day ${after.day} Cash ${formatCash(after.cash)} (${formatSignedMoney(before.netCash)}) Subs ${formatSubscribers(after.subscribers)} (${formatSignedNumber(before.netPaid, 2)})`);
 }
 
+function dayLengthMs() {
+  const seconds = Number(CONFIG.secondsPerDay) || 5;
+  const speed = Math.max(1, state && state.speed ? state.speed : 1);
+  return (seconds * 1000) / speed;
+}
+
+function clockHeld() {
+  const hidden = typeof document !== "undefined" && document.hidden;
+  return !state || state.status !== "playing" || state.paused || hidden || blocking || welcomeHold || menuDepth > 0 || guideOpen;
+}
+
 function start() {
-  if (timerId !== null || !state || state.status !== "playing" || state.paused || blocking || welcomeHold || menuDepth > 0 || guideOpen) return;
+  if (timerId !== null || clockHeld()) return;
   if (!hasUi()) return;
-  const ms = Math.max(200, Math.round(TICK_MS / (state.speed || 1)));
-  timerId = setInterval(() => tick(), ms);
+  lastClockNow = performance.now();
+  timerId = requestAnimationFrame(onClockFrame);
 }
 
 function stop() {
   if (timerId === null) return;
-  clearInterval(timerId);
+  cancelAnimationFrame(timerId);
   timerId = null;
+}
+
+function onClockFrame(now) {
+  timerId = null;
+  if (clockHeld()) return;
+  let delta = now - lastClockNow;
+  lastClockNow = now;
+  if (!Number.isFinite(delta) || delta < 0) delta = 0;
+  const length = dayLengthMs();
+  if (delta > length) delta = length;
+  dayFraction += length ? delta / length : 0;
+  if (dayFraction >= 1) {
+    dayFraction -= 1;
+    if (dayFraction > 1) dayFraction = 0;
+    tick();
+  }
+  paintDayProgress();
+  paintGlide();
+  if (!clockHeld()) timerId = requestAnimationFrame(onClockFrame);
+}
+
+function paintDayProgress() {
+  const fill = document.getElementById("day-fill");
+  const bar = document.getElementById("day-progress");
+  if (!fill || !bar) return;
+  const progress = clamp(dayFraction, 0, 1);
+  fill.style.width = `${progress * 100}%`;
+  const held = !state || state.paused || (typeof document !== "undefined" && document.hidden) || blocking || welcomeHold || menuDepth > 0 || guideOpen;
+  bar.classList.toggle("is-paused", !!held);
+}
+
+function paintGlide() {
+  if (!glide || !hasUi()) return;
+  const t = clamp(dayFraction, 0, 1);
+  const cashEl = document.getElementById("cash-value");
+  const subsEl = document.getElementById("subs-value");
+  const hero = document.getElementById("hero-subs");
+  if (cashEl) renderCash(cashEl, glide.cashFrom + (glide.cashTo - glide.cashFrom) * t);
+  const subs = glide.subsFrom + (glide.subsTo - glide.subsFrom) * t;
+  if (subsEl) renderSubscribers(subsEl, subs);
+  if (hero) hero.textContent = formatSubscribers(subs);
 }
 
 function setSpeed(value) {
@@ -1968,12 +2033,17 @@ function syncPauseOverlay() {
   if (typeof document === "undefined") return;
   const overlay = document.getElementById("pause-overlay");
   if (!overlay) return;
-  const show = !!(state && state.status === "playing" && state.paused && !guideOpen && !blocking && menuDepth === 0 && !welcomeHold);
+  const gate = document.getElementById("gate");
+  const onGate = gate && !gate.hidden;
+  const ended = state && (state.status === "won" || state.status === "lost" || state.status === "sold");
+  const show = !!(state && state.status === "playing" && state.paused && !onGate && !ended && !guideOpen);
   overlay.hidden = !show;
+  paintDayProgress();
 }
 
 function beginGame(difficultyId) {
   stop();
+  dayFraction = 0;
   blocking = false;
   welcomeHold = false;
   menuDepth = 0;
@@ -2405,7 +2475,9 @@ function closeOverlay(overlay) {
     overlay.hidden = true;
     welcomeHold = false;
     start();
-  } else if (id === "event-modal" || id === "renew-modal" || id === "weekly-modal" || id === "milestone-modal") dismissBlock();
+    syncPauseOverlay();
+  } else if (id === "changelog-modal") overlay.hidden = true;
+  else if (id === "event-modal" || id === "renew-modal" || id === "weekly-modal" || id === "milestone-modal") dismissBlock();
 }
 
 function syncModalLock() {
@@ -2759,6 +2831,7 @@ function closeGuide() {
 function launchGame() {
   const name = (draft.name || "").trim().slice(0, 24);
   stop();
+  dayFraction = 0;
   blocking = false;
   welcomeHold = false;
   menuDepth = 0;
@@ -2816,9 +2889,12 @@ function continueGame() {
   hideStart();
   syncPauseOverlay();
   if (state.status === "playing") {
-    const missed = Math.max(0, Math.min(300, Math.floor((Date.now() - (state.savedAt || Date.now())) / 1000)));
+    const missed = missedDays(state.savedAt);
+    state.paused = true;
+    dayFraction = 0;
     resetUi();
     startAutosave();
+    syncPauseOverlay();
     if (state.migratedFrom) {
       toast("Your save was updated for the new studio.");
       state.migratedFrom = null;
@@ -2826,7 +2902,7 @@ function continueGame() {
     if (missed >= 1) {
       const summary = catchUp(missed);
       showWelcome(summary);
-    } else start();
+    }
     return;
   }
   resetUi();
@@ -2915,6 +2991,7 @@ function paintSpeed() {
     if (!button) return;
     button.classList.toggle("is-on", on);
     button.setAttribute("aria-pressed", on ? "true" : "false");
+    if (id === "speed-pause") button.textContent = state.paused ? "Resume" : "Pause";
   });
 }
 
@@ -2923,7 +3000,13 @@ function paint(view) {
   document.querySelectorAll(".js-service-name").forEach((el) => {
     el.textContent = name;
   });
-  document.title = name;
+  applyVersionChrome();
+  glide = {
+    cashFrom: view.cash,
+    cashTo: view.cash,
+    subsFrom: view.subscribers,
+    subsTo: view.subscribers,
+  };
   const cashEl = setText("cash-value", formatCash(view.cash));
   if (cashEl) cashEl.classList.toggle("is-negative", view.cash < 0);
   setText("subs-value", formatSubscribers(view.subscribers));
@@ -3440,6 +3523,7 @@ function toast(text) {
   item.textContent = text;
   root.append(item);
   window.setTimeout(() => item.remove(), 3200);
+  return item;
 }
 
 function fillPosterBox(box, path, genre) {
@@ -3717,12 +3801,14 @@ function showDelta(id, text, tone) {
 
 function renderTick(before, after) {
   paint(after);
-  const cashEl = document.getElementById("cash-value");
-  const subsEl = document.getElementById("subs-value");
-  if (cashEl) renderCash(cashEl, before.cash);
-  if (subsEl) renderSubscribers(subsEl, before.subscribers);
-  animateValue("cash-value", before.cash, after.cash, renderCash);
-  animateValue("subs-value", before.subscribers, after.subscribers, renderSubscribers);
+  glide = {
+    cashFrom: before.cash,
+    cashTo: after.cash,
+    subsFrom: before.subscribers,
+    subsTo: after.subscribers,
+  };
+  paintGlide();
+  paintDayProgress();
   flashStat("cash-value", after.cash - before.cash);
   flashStat("subs-value", after.subscribers - before.subscribers);
   if (before.netCash !== 0) showDelta("cash-delta", formatSignedMoney(before.netCash), before.netCash > 0 ? "up" : "down");
@@ -3986,12 +4072,22 @@ function bindUi() {
     document.getElementById("welcome-modal").hidden = true;
     welcomeHold = false;
     start();
+    syncPauseOverlay();
   });
   document.getElementById("welcome-close").addEventListener("click", () => {
     document.getElementById("welcome-modal").hidden = true;
     welcomeHold = false;
     start();
+    syncPauseOverlay();
   });
+  const whatsNew = document.getElementById("whats-new-button");
+  if (whatsNew) whatsNew.addEventListener("click", openChangelog);
+  const titleWhatsNew = document.getElementById("title-whats-new");
+  if (titleWhatsNew) titleWhatsNew.addEventListener("click", openChangelog);
+  const changelogClose = document.getElementById("changelog-close");
+  if (changelogClose) changelogClose.addEventListener("click", () => { document.getElementById("changelog-modal").hidden = true; });
+  const changelogDone = document.getElementById("changelog-done");
+  if (changelogDone) changelogDone.addEventListener("click", () => { document.getElementById("changelog-modal").hidden = true; });
   document.getElementById("commission-cancel").addEventListener("click", closeCommission);
   document.getElementById("win-again").addEventListener("click", returnToMenu);
   document.getElementById("lose-again").addEventListener("click", returnToMenu);
@@ -4071,11 +4167,92 @@ function bindUi() {
   }
   window.addEventListener("pagehide", saveGame);
   document.addEventListener("visibilitychange", () => {
-    if (!document.hidden || !state || state.status !== "playing" || state.paused) return;
-    if (blocking || menuDepth > 0 || welcomeHold || guideOpen) return;
-    setSpeed(0);
+    if (!state || state.status !== "playing") return;
+    if (document.hidden) {
+      saveGame();
+      stop();
+      paintDayProgress();
+      return;
+    }
+    start();
+    paintDayProgress();
+    syncPauseOverlay();
   });
   hookStudioUi();
+}
+
+function gameVersion() {
+  return (CONFIG && CONFIG.gameVersion) || "3.4";
+}
+
+function releaseDateLabel() {
+  const raw = (CONFIG && CONFIG.releaseDate) || "2026-10-01";
+  const parts = String(raw).split("-");
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const month = months[(Number(parts[1]) || 1) - 1] || "Oct";
+  return `${Number(parts[2]) || 1} ${month} ${parts[0] || "2026"}`;
+}
+
+function applyVersionChrome() {
+  if (typeof document === "undefined") return;
+  const version = gameVersion();
+  document.title = `StreamCo v${version}`;
+  document.querySelectorAll(".js-version").forEach((el) => {
+    el.textContent = `v${version}`;
+  });
+  document.querySelectorAll(".js-version-date").forEach((el) => {
+    el.textContent = `v${version} - ${releaseDateLabel()}`;
+  });
+  const about = document.getElementById("about-version");
+  if (about) about.textContent = `StreamCo v${version} · ${releaseDateLabel()}`;
+}
+
+function announceVersion() {
+  const version = gameVersion();
+  let seen = "";
+  try {
+    seen = localStorage.getItem("streamco_last_version") || "";
+  } catch (err) {
+    seen = version;
+  }
+  if (seen === version) return;
+  try {
+    localStorage.setItem("streamco_last_version", version);
+  } catch (err) {
+    // Ignore private mode.
+  }
+  const item = toast(`Updated to v${version} - What's new`);
+  if (item) item.addEventListener("click", openChangelog);
+}
+
+function openChangelog() {
+  const root = document.getElementById("changelog-list");
+  const modal = document.getElementById("changelog-modal");
+  if (!root || !modal) return;
+  const notes = (typeof window !== "undefined" && window.STREAMCO_CHANGELOG) || [];
+  root.replaceChildren();
+  notes.forEach((entry, index) => {
+    const block = document.createElement("details");
+    block.open = index === 0;
+    const summary = document.createElement("summary");
+    summary.textContent = `v${entry.version} · ${entry.date}`;
+    block.append(summary);
+    ["added", "changed", "fixed"].forEach((key) => {
+      const items = entry[key] || [];
+      if (!items.length) return;
+      const heading = document.createElement("h3");
+      heading.textContent = key.charAt(0).toUpperCase() + key.slice(1);
+      const list = document.createElement("ul");
+      items.forEach((line) => {
+        const item = document.createElement("li");
+        item.textContent = line;
+        list.append(item);
+      });
+      block.append(heading, list);
+    });
+    root.append(block);
+  });
+  modal.hidden = false;
 }
 
 function mountUi() {
@@ -4083,6 +4260,8 @@ function mountUi() {
   bindUi();
   renderUpgradeList();
   saveSettings();
+  applyVersionChrome();
+  announceVersion();
   resetUi();
 }
 

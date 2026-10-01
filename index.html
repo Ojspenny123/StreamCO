@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>StreamCo</title>
+  <title>StreamCo v3.4</title>
   <link rel="icon" type="image/svg+xml" href="./icons/favicon.svg">
   <link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon-32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="./icons/favicon-16.png">
@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./style.css">
+  <link rel="stylesheet" href="./style.css?v=3.4">
 </head>
 <body>
   <header class="topbar">
@@ -49,6 +49,7 @@
           <span class="stat-label" id="day-label">Day</span>
         </div>
         <span class="stat-value" id="day-value" aria-labelledby="day-label">0</span>
+        <span class="day-progress" id="day-progress" aria-hidden="true"><span id="day-fill"></span></span>
       </div>
       <div class="stat price-stat">
         <div class="stat-head">
@@ -240,7 +241,7 @@
     </section>
 
     <footer class="credit">
-      <p>Created by OJ Spenny Gaming</p>
+      <p>Created by OJ Spenny Gaming <span class="version-note js-version-date">v3.4 - 1 Oct 2026</span></p>
       <p class="attribution">
         <img class="tmdb-logo" src="https://www.themoviedb.org/assets/2/v4/logos/v2/blue_short-8e7b30f73a4020692ccca9c88bafe5dcb6f8a62a4c6bc55cd9ba82bb2cd95f6c.svg" alt="TMDB">
         This product uses the TMDB API but is not endorsed or certified by TMDB.
@@ -299,6 +300,7 @@
         <img class="brand-logo" src="./icons/logo.svg" alt="StreamCo logo">
         <span class="logo-word">StreamCo</span>
       </div>
+      <p class="version-badge js-version">v3.4</p>
       <p class="gate-tagline" id="title-tagline">Build a streaming empire.</p>
       <div class="install-hint" id="install-hint" hidden>
         <button type="button" class="reset-button" id="install-button" hidden>Install StreamCo</button>
@@ -309,6 +311,7 @@
         <button type="button" class="buy-button buy-xl" id="start-game">Start Game</button>
         <button type="button" class="buy-button buy-xl" id="continue-button" hidden>Continue</button>
         <button type="button" class="text-link" id="title-help">How to play</button>
+        <button type="button" class="text-link" id="title-whats-new">What's new</button>
       </div>
       <ol class="score-list" id="start-scores"></ol>
       <footer class="credit">
@@ -363,10 +366,9 @@
     </section>
   </div>
 
-  <div class="pause-overlay" id="pause-overlay" hidden>
-    <p class="modal-kicker js-service-name">StreamCo</p>
-    <h2>Paused</h2>
-    <button type="button" class="buy-button buy-xl" id="resume-button">Resume</button>
+  <div class="pause-banner" id="pause-overlay" hidden>
+    <p>Paused</p>
+    <button type="button" class="buy-button" id="resume-button">Resume</button>
   </div>
 
   <div class="overlay" id="commission-modal" hidden>
@@ -477,6 +479,11 @@
       <div class="modal-scroll">
         <label class="settings-row"><input type="checkbox" id="settings-animations" checked> Animations</label>
         <p class="modal-line">Space pauses. 1, 2, and 3 set the speed.</p>
+        <section class="about-block">
+          <h3>About</h3>
+          <p id="about-version">StreamCo v3.4 · 1 Oct 2026</p>
+          <button type="button" class="reset-button" id="whats-new-button">What's new</button>
+        </section>
         <div class="catalogue-debug" id="catalogue-debug"></div>
       </div>
       <div class="modal-foot">
@@ -501,13 +508,27 @@
     </div>
   </div>
 
+  <div class="overlay" id="changelog-modal" hidden>
+    <div class="modal-card modal-wide" role="dialog" aria-modal="true" aria-labelledby="changelog-title">
+      <div class="modal-head">
+        <h2 id="changelog-title">What's new</h2>
+        <button type="button" class="modal-x" id="changelog-close" aria-label="Close">×</button>
+      </div>
+      <div class="modal-scroll" id="changelog-list"></div>
+      <div class="modal-foot">
+        <button type="button" class="buy-button" id="changelog-done">Close</button>
+      </div>
+    </div>
+  </div>
+
   <div class="toasts" id="toasts" aria-live="polite"></div>
 
   <noscript>
     <p class="noscript">StreamCo needs JavaScript to run the day-by-day simulation.</p>
   </noscript>
-  <script src="./config.js"></script>
-  <script src="./game.js"></script>
+  <script src="./config.js?v=3.4"></script>
+  <script src="./changelog.js?v=3.4"></script>
+  <script src="./game.js?v=3.4"></script>
   <script>
     (function () {
       var key = "streamco-install-dismissed";
