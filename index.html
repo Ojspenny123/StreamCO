@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>StreamCo v3.4</title>
+  <title>StreamCo v3.41</title>
   <link rel="icon" type="image/svg+xml" href="./icons/favicon.svg">
   <link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon-32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="./icons/favicon-16.png">
@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./style.css?v=3.4">
+  <link rel="stylesheet" href="./style.css?v=3.41">
 </head>
 <body>
   <header class="topbar">
@@ -32,8 +32,9 @@
           <span class="stat-label" id="cash-label">Cash</span>
           <span class="stat-delta" id="cash-delta"></span>
         </div>
-        <span class="stat-value" id="cash-value" aria-labelledby="cash-label">$10,000</span>
+        <span class="stat-value" id="cash-value" aria-labelledby="cash-label">$20,000</span>
         <span class="debt-chip" id="debt-chip" hidden>In debt</span>
+        <span class="head-start-chip" id="head-start-chip" hidden>Head start</span>
         <div class="credit-bar" aria-hidden="true"><div id="credit-fill"></div></div>
         <span class="credit-note" id="credit-note"></span>
       </div>
@@ -241,7 +242,7 @@
     </section>
 
     <footer class="credit">
-      <p>Created by OJ Spenny Gaming <span class="version-note js-version-date">v3.4 - 1 Oct 2026</span></p>
+      <p>Created by OJ Spenny Gaming <span class="version-note js-version-date">v3.41 - 1 Oct 2026</span></p>
       <p class="attribution">
         <img class="tmdb-logo" src="https://www.themoviedb.org/assets/2/v4/logos/v2/blue_short-8e7b30f73a4020692ccca9c88bafe5dcb6f8a62a4c6bc55cd9ba82bb2cd95f6c.svg" alt="TMDB">
         This product uses the TMDB API but is not endorsed or certified by TMDB.
@@ -275,6 +276,7 @@
     <p class="modal-line" id="win-line">A million subscribers. The world is watching.</p>
     <dl class="endscreen-stats" id="win-stats"></dl>
     <p class="score-line" id="win-score"></p>
+    <p class="score-line" id="win-headstart" hidden></p>
     <ol class="score-list" id="win-board"></ol>
     <button type="button" class="buy-button" id="win-again">Play again</button>
     <p class="credit">Created by OJ Spenny Gaming</p>
@@ -286,9 +288,10 @@
       <p class="modal-kicker js-service-name">StreamCo</p>
     </div>
     <h2>Signal Lost</h2>
-    <p class="modal-line" id="lose-line">Cash stayed below -$50,000 for 30 days.</p>
+    <p class="modal-line" id="lose-line">Cash stayed below the credit limit for 30 days.</p>
     <dl class="endscreen-stats" id="lose-stats"></dl>
     <p class="score-line" id="lose-score"></p>
+    <p class="score-line" id="lose-headstart" hidden></p>
     <ol class="score-list" id="lose-board"></ol>
     <button type="button" class="buy-button" id="lose-again">Play again</button>
     <p class="credit">Created by OJ Spenny Gaming</p>
@@ -300,7 +303,7 @@
         <img class="brand-logo" src="./icons/logo.svg" alt="StreamCo logo">
         <span class="logo-word">StreamCo</span>
       </div>
-      <p class="version-badge js-version">v3.4</p>
+      <p class="version-badge js-version">v3.41</p>
       <p class="gate-tagline" id="title-tagline">Build a streaming empire.</p>
       <div class="install-hint" id="install-hint" hidden>
         <button type="button" class="reset-button" id="install-button" hidden>Install StreamCo</button>
@@ -329,9 +332,27 @@
       <h2>Open the service</h2>
       <p class="modal-line">Pick a difficulty. Sandbox turns off defeat and random events.</p>
       <div class="difficulty-grid" id="difficulty-grid">
-        <button type="button" class="diff-card" data-difficulty="easy"><strong>Easy</strong><span>$20,000 · 2 rivals · gentler setbacks</span></button>
-        <button type="button" class="diff-card is-on" data-difficulty="normal"><strong>Normal</strong><span>$10,000 · 3 rivals · the standard slate</span></button>
-        <button type="button" class="diff-card" data-difficulty="hard"><strong>Hard</strong><span>$6,000 · 4 rivals · harsher bad news</span></button>
+        <button type="button" class="diff-card" data-difficulty="easy"><strong>Easy</strong><span>$40,000 · 2 rivals · gentler setbacks</span></button>
+        <button type="button" class="diff-card is-on" data-difficulty="normal"><strong>Normal</strong><span>$20,000 · 3 rivals · the standard slate</span></button>
+        <button type="button" class="diff-card" data-difficulty="hard"><strong>Hard</strong><span>$12,000 · 4 rivals · harsher bad news</span></button>
+      </div>
+      <div class="extra-cash">
+        <label class="extra-cash-label" for="extra-cash-slider">Extra starting cash</label>
+        <div class="extra-cash-controls">
+          <div class="extra-cash-slider-wrap">
+            <input id="extra-cash-slider" type="range" min="0" max="1000000" step="10000" value="0" aria-describedby="extra-cash-total">
+          </div>
+          <input id="extra-cash-number" type="number" min="0" max="1000000" step="10000" value="0" inputmode="numeric" aria-label="Extra starting cash amount">
+        </div>
+        <p class="extra-cash-total" id="extra-cash-total" aria-live="polite">Starting cash: $20,000 + $0 = $20,000</p>
+        <div class="filters extra-presets" id="extra-cash-presets" role="group" aria-label="Extra cash presets">
+          <button type="button" class="filter" data-extra="0">+$0</button>
+          <button type="button" class="filter" data-extra="50000">+$50K</button>
+          <button type="button" class="filter" data-extra="100000">+$100K</button>
+          <button type="button" class="filter" data-extra="250000">+$250K</button>
+          <button type="button" class="filter" data-extra="500000">+$500K</button>
+          <button type="button" class="filter" data-extra="1000000">+$1M</button>
+        </div>
       </div>
       <label class="settings-row" for="sandbox-toggle"><input type="checkbox" id="sandbox-toggle"> Sandbox (no losing, no random events)</label>
       <label class="name-field">Service name
@@ -481,7 +502,7 @@
         <p class="modal-line">Space pauses. 1, 2, and 3 set the speed.</p>
         <section class="about-block">
           <h3>About</h3>
-          <p id="about-version">StreamCo v3.4 · 1 Oct 2026</p>
+          <p id="about-version">StreamCo v3.41 · 1 Oct 2026</p>
           <button type="button" class="reset-button" id="whats-new-button">What's new</button>
         </section>
         <div class="catalogue-debug" id="catalogue-debug"></div>
@@ -526,9 +547,9 @@
   <noscript>
     <p class="noscript">StreamCo needs JavaScript to run the day-by-day simulation.</p>
   </noscript>
-  <script src="./config.js?v=3.4"></script>
-  <script src="./changelog.js?v=3.4"></script>
-  <script src="./game.js?v=3.4"></script>
+  <script src="./config.js?v=3.41"></script>
+  <script src="./changelog.js?v=3.41"></script>
+  <script src="./game.js?v=3.41"></script>
   <script>
     (function () {
       var key = "streamco-install-dismissed";

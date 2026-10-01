@@ -1,7 +1,7 @@
 (function () {
   var config = {
     productName: "StreamCo",
-    gameVersion: "3.4",
+    gameVersion: "3.41",
     releaseDate: "2026-10-01",
     secondsPerDay: 5,
     tagline: "Build a streaming empire.",
@@ -15,11 +15,18 @@
       hard: { companyValue: 220000000, subscribers: 5600000 },
       sandbox: { companyValue: 28000000, subscribers: 1200000 },
     },
+    headStart: {
+      min: 0,
+      max: 1000000,
+      step: 10000,
+      scoreDivisor: 2000000,
+      scoreFloor: 0.5,
+    },
     credit: {
-      easy: 75000,
-      normal: 50000,
-      hard: 30000,
-      sandbox: 75000,
+      easy: 150000,
+      normal: 100000,
+      hard: 60000,
+      sandbox: 150000,
       dailyInterest: 0.001,
       hardDailyInterest: 0.0015,
       bankruptcyDays: 30,
@@ -31,10 +38,10 @@
       brandStrain: -1,
     },
     difficulties: {
-      easy: { id: "easy", name: "Easy", cash: 20000, rivals: 2, severity: 0.6, eventMin: 30, eventSpan: 21, rivalStrength: 0.72, events: true, canLose: true },
-      normal: { id: "normal", name: "Normal", cash: 10000, rivals: 3, severity: 1, eventMin: 20, eventSpan: 21, rivalStrength: 1, events: true, canLose: true },
-      hard: { id: "hard", name: "Hard", cash: 6000, rivals: 4, severity: 1.35, eventMin: 15, eventSpan: 14, rivalStrength: 1.22, events: true, canLose: true },
-      sandbox: { id: "sandbox", name: "Sandbox", cash: 40000, rivals: 2, severity: 1, eventMin: 999, eventSpan: 1, rivalStrength: 0.45, events: false, canLose: false },
+      easy: { id: "easy", name: "Easy", cash: 40000, rivals: 2, severity: 0.6, eventMin: 30, eventSpan: 21, rivalStrength: 0.72, events: true, canLose: true },
+      normal: { id: "normal", name: "Normal", cash: 20000, rivals: 3, severity: 1, eventMin: 20, eventSpan: 21, rivalStrength: 1, events: true, canLose: true },
+      hard: { id: "hard", name: "Hard", cash: 12000, rivals: 4, severity: 1.35, eventMin: 15, eventSpan: 14, rivalStrength: 1.22, events: true, canLose: true },
+      sandbox: { id: "sandbox", name: "Sandbox", cash: 80000, rivals: 2, severity: 1, eventMin: 999, eventSpan: 1, rivalStrength: 0.45, events: false, canLose: false },
     },
     economy: {
       anchorPrice: 8,

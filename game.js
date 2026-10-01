@@ -15,6 +15,8 @@ const SAVE_KEY = "streamco-save-v2";
 const SAVE_KEY_V1 = "streamco-save-v1";
 const SCORE_KEY = "streamco-scores-v1";
 const SETTINGS_KEY = "streamco-settings-v1";
+const EXTRA_CASH_KEY = "streamco_extra_cash";
+const LEGACY_CREDIT = { easy: 75000, normal: 50000, hard: 30000, sandbox: 75000 };
 const UPGRADE_COST_GROWTH = 1.15;
 const BUFFERING_CHURN = 0.0025;
 const FREE_USER_AD_REVENUE = 0.03;
@@ -146,7 +148,7 @@ const ICONS = {
 const TUTORIAL = [
   { selector: "#price-slider", text: "Price changes growth and churn. Cheap grows fast and can lose money. Raise it gradually." },
   { selector: ".upgrades", text: "The content desk acquires real titles or builds originals. Sports packages are contracts." },
-  { selector: "#cash-value", text: "You can buy on credit up to the limit. Interest is charged every day the balance is negative." },
+  { selector: "#cash-value", text: "You can buy on credit up to the limit. Interest is charged every day the balance is negative. Extra starting cash is a head start and trims the final score." },
   { selector: "#posters", text: "The library shows productions and titles. Click a tile for scores, cast, freshness, and the contract." },
   { selector: ".event-log", text: "Newest news sits at the top. Filter it when money, events, and rivals start talking over each other." },
 ];
@@ -185,7 +187,7 @@ let libraryFilter = "all";
 let librarySort = "newest";
 let tutorialIndex = -1;
 let settings = { animations: true, tutorialDismissed: false, skipGuide: false };
-let draft = { difficulty: "normal", sandbox: false, name: "" };
+let draft = { difficulty: "normal", sandbox: false, name: "", extraCash: 0 };
 let guideMode = "new";
 let guidePage = 0;
 let guideOpen = false;
@@ -293,11 +295,85 @@ function createRivals(diff) {
   });
 }
 
+function headStartConfig() {
+  return (CONFIG && CONFIG.headStart) || { min: 0, max: 1000000, step: 10000, scoreDivisor: 2000000, scoreFloor: 0.5 };
+}
+
+function clampExtraCash(value) {
+  const rules = headStartConfig();
+  const step = rules.step || 10000;
+  const min = rules.min || 0;
+  const max = rules.max || 1000000;
+  const n = Number(value);
+  if (!Number.isFinite(n)) return min;
+  const rounded = Math.round(n / step) * step;
+  return clamp(rounded, min, max);
+}
+
+function readStoredExtraCash() {
+  if (typeof localStorage === "undefined") return 0;
+  try {
+    return clampExtraCash(localStorage.getItem(EXTRA_CASH_KEY));
+  } catch (err) {
+    return 0;
+  }
+}
+
+function storeExtraCash(value) {
+  const next = clampExtraCash(value);
+  if (typeof localStorage === "undefined") return next;
+  try {
+    localStorage.setItem(EXTRA_CASH_KEY, String(next));
+  } catch (err) {
+    // Ignore a blocked store.
+  }
+  return next;
+}
+
+function scoreMultiplier(extra, sandbox) {
+  if (sandbox) return 1;
+  const amount = clampExtraCash(extra || 0);
+  if (amount <= 0) return 1;
+  const rules = headStartConfig();
+  const raw = 1 - amount / (rules.scoreDivisor || 2000000);
+  return Math.max(rules.scoreFloor == null ? 0.5 : rules.scoreFloor, raw);
+}
+
+function formatMultiplier(value) {
+  return `x${Number(value).toFixed(2)}`;
+}
+
+function headStartText() {
+  const extra = state && Number.isFinite(state.extraCash) ? clampExtraCash(state.extraCash) : 0;
+  if (extra <= 0) return "";
+  const mult = scoreMultiplier(extra, !!(state && state.sandbox));
+  return `Head start: +${formatCash(extra)} (score ${formatMultiplier(mult)})`;
+}
+
+function startingCreditFloor(difficultyId) {
+  const credit = CONFIG.credit || {};
+  const id = difficultyId || "normal";
+  return credit[id] || credit.normal || 100000;
+}
+
+function applyExtraCash(extra) {
+  const amount = clampExtraCash(extra);
+  const base = (DIFFICULTIES[state.difficulty] || DIFFICULTIES.normal).cash;
+  state.extraCash = amount;
+  state.baseCash = base;
+  state.cash = roundCents(base + amount);
+  state.creditFloor = startingCreditFloor(state.difficulty);
+  return amount;
+}
+
 function createInitialState(difficultyId) {
   const diff = DIFFICULTIES[difficultyId] || DIFFICULTIES.normal;
   return {
     day: 0,
     cash: diff.cash,
+    baseCash: diff.cash,
+    extraCash: 0,
+    creditFloor: startingCreditFloor(diff.id),
     subscribers: STARTING_SUBSCRIBERS,
     freeUsers: 0,
     monthlyPrice: STARTING_MONTHLY_PRICE,
@@ -538,7 +614,7 @@ function dailyInterest(cash) {
 
 function creditLimit() {
   const credit = CONFIG.credit || {};
-  const start = credit[state.difficulty] || credit.normal || 50000;
+  const start = Number.isFinite(state.creditFloor) ? state.creditFloor : (credit[state.difficulty] || credit.normal || 100000);
   const recent = analytics.slice(-30);
   const avg = recent.length ? recent.reduce((sum, row) => sum + (row.revenue || 0), 0) / recent.length : 0;
   return Math.max(start, avg * (credit.revenueMultiple || 45) + (state.brand || 0) * (credit.brandBonus || 0)) + (state.creditBonus || 0);
@@ -770,6 +846,8 @@ function snapshot() {
     status: state.status,
     brand: state.brand,
     difficulty: state.difficulty,
+    extraCash: state.extraCash || 0,
+    scoreMultiplier: scoreMultiplier(state.extraCash || 0, state.sandbox),
     speed: state.speed,
     paused: state.paused,
     priceAttractiveness: attractiveness,
@@ -1775,7 +1853,7 @@ function computeScore() {
   const speedBonus = state.status === "won" ? Math.max(0, 800 - state.day) : 0;
   let score = subs * 0.02 + Math.max(0, state.cash) * 0.01 + state.brand * 50 + achievements.size * 400 + speedBonus;
   if (state.status === "sold") score = subs * 0.01 + Math.max(0, state.cash) * 0.005 + state.brand * 20 + 2500;
-  return Math.round(score);
+  return Math.round(score * scoreMultiplier(state.extraCash || 0, state.sandbox));
 }
 
 function readScores() {
@@ -1804,6 +1882,7 @@ function recordScore() {
     subs: Math.round(paidSubscribers()),
     cash: Math.round(state.cash),
     brand: Math.round(state.brand),
+    headStart: clampExtraCash(state.extraCash || 0),
   });
   list.sort((a, b) => b.score - a.score);
   all[bucket] = list.slice(0, 5);
@@ -2041,7 +2120,7 @@ function syncPauseOverlay() {
   paintDayProgress();
 }
 
-function beginGame(difficultyId) {
+function beginGame(difficultyId, options) {
   stop();
   dayFraction = 0;
   blocking = false;
@@ -2050,6 +2129,7 @@ function beginGame(difficultyId) {
   promptQueue = [];
   guideOpen = false;
   resetProgress(difficultyId || "normal");
+  applyExtraCash(options && options.extraCash);
   if (hasUi()) {
     hideStart();
     syncPauseOverlay();
@@ -2068,7 +2148,7 @@ function returnToMenu() {
   resetProgress("normal");
   state.status = "menu";
   state.paused = false;
-  draft = { difficulty: "normal", sandbox: false, name: "" };
+  draft = { difficulty: "normal", sandbox: false, name: "", extraCash: readStoredExtraCash() };
   guideOpen = false;
   clearSave();
   if (hasUi()) {
@@ -2236,6 +2316,9 @@ function applyLoaded(data) {
   state.priceAnchor = Number.isFinite(state.priceAnchor) ? state.priceAnchor : state.monthlyPrice;
   state.adTier = !!state.adTier;
   state.aListCast = state.aListCast || 0;
+  state.extraCash = Number.isFinite(Number(state.extraCash)) ? clampExtraCash(state.extraCash) : 0;
+  if (!Number.isFinite(state.creditFloor)) state.creditFloor = LEGACY_CREDIT[state.difficulty] || LEGACY_CREDIT.normal;
+  if (!Number.isFinite(state.baseCash)) state.baseCash = state.cash;
   if (!data.version || data.version < 4) state.migratedFrom = data.version || 1;
   owned = { ...emptyOwned(), ...(data.owned || {}) };
   titles = Array.isArray(data.titles) ? data.titles : [];
@@ -2654,7 +2737,7 @@ function guidePages() {
     {
       emoji: "📊",
       title: "The top bar",
-      body: "Cash is the money you have. Subscribers pay the monthly price. Day is the clock. Price is what you charge. Credit is how far you can go into debt. Brand is your reputation.",
+      body: "Cash is the money you have. Subscribers pay the monthly price. Day is the clock. Price is what you charge. Credit is how far you can go into debt. Brand is your reputation. A Head start badge appears when the run began with extra cash.",
     },
     {
       emoji: "💰",
@@ -2669,7 +2752,7 @@ function guidePages() {
     {
       emoji: "💳",
       title: "Debt",
-      body: "You can buy things on credit and grow faster. Interest is charged every day you are in debt. If you go past your credit limit, a bankruptcy countdown starts.",
+      body: `On ${diff.name} you start with ${formatCash(diff.cash)} and a credit limit of ${formatCash(startingCreditFloor(diff.id))}. Extra starting cash on Setup adds to cash only, from $0 to $1,000,000. A head start above $0 lowers the final score, down to half. Sandbox keeps the full score. You can buy on credit and grow faster. Interest is charged every day you are in debt. If you go past your credit limit, a bankruptcy countdown starts.`,
     },
     {
       emoji: "🎲",
@@ -2703,7 +2786,8 @@ function fillStartScores() {
     const best = (scores[id] || [])[0];
     if (!best) return;
     const item = document.createElement("li");
-    item.textContent = `${DIFFICULTIES[id].name} best ${Math.round(best.score).toLocaleString("en-US")}`;
+    const head = best.headStart > 0 ? ` · head start +${formatCash(best.headStart)}` : "";
+    item.textContent = `${DIFFICULTIES[id].name} best ${Math.round(best.score).toLocaleString("en-US")}${head}`;
     list.append(item);
   });
 }
@@ -2734,8 +2818,72 @@ function hideStart() {
   guideOpen = false;
 }
 
+function selectedDifficultyId() {
+  const selected = typeof document !== "undefined" ? document.querySelector("#difficulty-grid .diff-card.is-on") : null;
+  return (selected && selected.dataset.difficulty) || draft.difficulty || "normal";
+}
+
+function paintDifficultyCards() {
+  if (typeof document === "undefined") return;
+  document.querySelectorAll("#difficulty-grid .diff-card").forEach((card) => {
+    const id = card.dataset.difficulty;
+    const diff = DIFFICULTIES[id];
+    const span = card.querySelector("span");
+    if (!diff || !span) return;
+    const blurb = id === "easy" ? "gentler setbacks" : id === "hard" ? "harsher bad news" : "the standard slate";
+    span.textContent = `${formatCash(diff.cash)} · ${diff.rivals} rivals · ${blurb}`;
+  });
+}
+
+function paintExtraCash(options) {
+  if (typeof document === "undefined") return;
+  const rules = headStartConfig();
+  const next = clampExtraCash(draft.extraCash);
+  draft.extraCash = next;
+  const slider = document.getElementById("extra-cash-slider");
+  const number = document.getElementById("extra-cash-number");
+  const total = document.getElementById("extra-cash-total");
+  if (slider) {
+    slider.min = String(rules.min || 0);
+    slider.max = String(rules.max || 1000000);
+    slider.step = String(rules.step || 10000);
+    slider.value = String(next);
+  }
+  if (number && (document.activeElement !== number || (options && options.forceNumber))) {
+    number.min = String(rules.min || 0);
+    number.max = String(rules.max || 1000000);
+    number.step = String(rules.step || 10000);
+    number.value = String(next);
+  }
+  if (total) {
+    const base = (DIFFICULTIES[selectedDifficultyId()] || DIFFICULTIES.normal).cash;
+    total.textContent = `Starting cash: ${formatCash(base)} + ${formatCash(next)} = ${formatCash(base + next)}`;
+  }
+  document.querySelectorAll("#extra-cash-presets button").forEach((button) => {
+    const on = Number(button.dataset.extra) === next;
+    button.classList.toggle("is-on", on);
+    button.setAttribute("aria-pressed", on ? "true" : "false");
+  });
+}
+
+function setDraftExtraCash(value, options) {
+  draft.extraCash = storeExtraCash(value);
+  paintExtraCash(options);
+}
+
+function paintHeadStart(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const text = headStartText();
+  el.hidden = !text;
+  el.textContent = text;
+}
+
 function showSetup() {
   guideOpen = false;
+  draft.extraCash = readStoredExtraCash();
+  paintDifficultyCards();
+  paintExtraCash({ forceNumber: true });
   showPanel("setup-screen");
 }
 
@@ -2839,6 +2987,7 @@ function launchGame() {
   guideOpen = false;
   resetProgress(draft.difficulty || "normal");
   state.sandbox = !!draft.sandbox;
+  applyExtraCash(draft.extraCash);
   state.serviceName = name || SERVICE_NAME;
   if (state.sandbox) state.nextEventDay = Infinity;
   state.status = "playing";
@@ -2933,14 +3082,18 @@ function showEndScreen() {
     setText("win-line", state.status === "sold" ? "A rival wrote the cheque. The catalogue is theirs now." : "Company value, subscribers, and a healthy business, held together.");
     fillEndStats("win-stats");
     setText("win-score", `Score ${computeScore().toLocaleString("en-US")}`);
+    paintHeadStart("win-headstart");
     fillBoard("win-board");
     win.hidden = false;
     return;
   }
   if (state.status === "lost") {
     win.hidden = true;
+    const days = (CONFIG.credit || {}).bankruptcyDays || 30;
+    setText("lose-line", `Cash stayed below -${formatCash(creditLimit())} for ${days} days.`);
     fillEndStats("lose-stats");
     setText("lose-score", `Score ${computeScore().toLocaleString("en-US")}`);
+    paintHeadStart("lose-headstart");
     fillBoard("lose-board");
     lose.hidden = false;
     return;
@@ -2956,7 +3109,8 @@ function fillBoard(id) {
   const list = readScores()[scoreBucket()] || [];
   list.forEach((entry, index) => {
     const item = document.createElement("li");
-    item.textContent = `${index + 1}. ${Math.round(entry.score).toLocaleString("en-US")} · day ${entry.day} · ${formatSubscribers(entry.subs)}`;
+    const head = entry.headStart > 0 ? ` · head start +${formatCash(entry.headStart)}` : "";
+    item.textContent = `${index + 1}. ${Math.round(entry.score).toLocaleString("en-US")} · day ${entry.day} · ${formatSubscribers(entry.subs)}${head}`;
     root.append(item);
   });
 }
@@ -3910,6 +4064,12 @@ function showTab(name) {
     if (panel) panel.hidden = id !== name;
   });
   syncView();
+  if (typeof requestAnimationFrame === "function") {
+    requestAnimationFrame(() => {
+      drawChart();
+      if (currentTab === "analytics") renderAnalytics();
+    });
+  }
 }
 
 function exportSave() {
@@ -4098,6 +4258,24 @@ function bindUi() {
     document.querySelectorAll("#difficulty-grid .diff-card").forEach((el) => {
       el.classList.toggle("is-on", el === card);
     });
+    paintExtraCash();
+  });
+  const extraSlider = document.getElementById("extra-cash-slider");
+  if (extraSlider) extraSlider.addEventListener("input", () => setDraftExtraCash(extraSlider.value));
+  const extraNumber = document.getElementById("extra-cash-number");
+  if (extraNumber) {
+    extraNumber.addEventListener("input", () => {
+      draft.extraCash = storeExtraCash(extraNumber.value);
+      paintExtraCash();
+    });
+    extraNumber.addEventListener("change", () => setDraftExtraCash(extraNumber.value, { forceNumber: true }));
+    extraNumber.addEventListener("blur", () => setDraftExtraCash(extraNumber.value, { forceNumber: true }));
+  }
+  const extraPresets = document.getElementById("extra-cash-presets");
+  if (extraPresets) extraPresets.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-extra]");
+    if (!button) return;
+    setDraftExtraCash(button.dataset.extra, { forceNumber: true });
   });
   document.getElementById("start-game").addEventListener("click", showSetup);
   document.getElementById("continue-button").addEventListener("click", continueGame);
@@ -4108,6 +4286,8 @@ function bindUi() {
     draft.difficulty = selected ? selected.dataset.difficulty : draft.difficulty;
     draft.sandbox = !!document.getElementById("sandbox-toggle").checked;
     draft.name = document.getElementById("service-name").value || "";
+    const extraInput = document.getElementById("extra-cash-slider");
+    if (extraInput) draft.extraCash = storeExtraCash(extraInput.value);
     if (settings.skipGuide && catalogueReady) launchGame();
     else if (settings.skipGuide) {
       openGuide("new");
@@ -4161,10 +4341,17 @@ function bindUi() {
     else if (event.key === "3" || event.key === "4") setSpeed(4);
   });
   const chart = document.getElementById("subscriber-chart");
+  const redrawVisibleCharts = () => {
+    if (!state) return;
+    drawChart();
+    if (currentTab === "analytics") renderAnalytics();
+  };
   if (chart && typeof ResizeObserver !== "undefined") {
-    const observer = new ResizeObserver(() => drawChart());
+    const observer = new ResizeObserver(() => redrawVisibleCharts());
     observer.observe(chart);
   }
+  window.addEventListener("resize", redrawVisibleCharts);
+  if (window.visualViewport) window.visualViewport.addEventListener("resize", redrawVisibleCharts);
   window.addEventListener("pagehide", saveGame);
   document.addEventListener("visibilitychange", () => {
     if (!state || state.status !== "playing") return;
@@ -4182,7 +4369,7 @@ function bindUi() {
 }
 
 function gameVersion() {
-  return (CONFIG && CONFIG.gameVersion) || "3.4";
+  return (CONFIG && CONFIG.gameVersion) || "3.41";
 }
 
 function releaseDateLabel() {
@@ -5340,6 +5527,8 @@ function renderCredit(view) {
   }
   const chip = document.getElementById("debt-chip");
   if (chip) chip.hidden = view.cash >= 0;
+  const head = document.getElementById("head-start-chip");
+  if (head) head.hidden = !((state.extraCash || 0) > 0);
   const banner = document.getElementById("bust-banner");
   if (banner) {
     const left = ((CONFIG.credit || {}).bankruptcyDays || 30) - (view.daysBelowLoseLine || 0);
@@ -5576,8 +5765,9 @@ function autoPlayContent() {
   }
 }
 
-function balanceTest() {
+function balanceTest(extraCash) {
   const savedRng = rng;
+  const extra = clampExtraCash(extraCash || 0);
   const strategies = [2, 5, 10, 20, "adaptive", "spend"];
   const report = strategies.map((strategy) => {
     let seed = 24681357;
@@ -5585,7 +5775,7 @@ function balanceTest() {
       seed = (seed * 1664525 + 1013904223) % 4294967296;
       return seed / 4294967296;
     };
-    beginGame("normal");
+    beginGame("normal", { extraCash: extra });
     state.nextEventDay = Infinity;
     const fixed = strategy === "adaptive" || strategy === "spend" ? 8 : Number(strategy);
     state.monthlyPrice = fixed;
@@ -5617,6 +5807,7 @@ function balanceTest() {
     }
     return {
       strategy: String(strategy),
+      extra,
       status: state.status,
       day: state.day,
       subscribers: Math.round(paidSubscribers()),

@@ -1,6 +1,19 @@
 (function () {
   var changelog = [
     {
+      version: "3.41",
+      date: "2026-10-01",
+      added: [
+        "Extra starting cash slider on the setup screen (+$0 to +$1,000,000), with a Head start badge and a fair score adjustment."
+      ],
+      changed: [
+        "Starting cash and starting credit limit are doubled on all difficulties."
+      ],
+      fixed: [
+        "Desktop dashboard layout: tabs, charts and the library are no longer squashed or overlapping, and every tab can now be scrolled and viewed in full on desktop. Mobile unchanged."
+      ]
+    },
+    {
       version: "3.4",
       date: "2026-10-01",
       added: [

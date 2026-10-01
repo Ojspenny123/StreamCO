@@ -1917,6 +1917,185 @@ button,
   min-width: 44px;
 }
 
+.head-start-chip {
+  display: inline-block;
+  width: fit-content;
+  margin-top: 2px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--warning);
+  color: #1a1203;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.head-start-chip[hidden] { display: none; }
+
+.extra-cash {
+  width: min(520px, 100%);
+  margin: 4px auto 16px;
+  text-align: left;
+}
+
+.extra-cash-label {
+  display: block;
+  margin-bottom: 4px;
+  font-weight: 700;
+}
+
+.extra-cash-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.extra-cash-slider-wrap {
+  flex: 1 1 180px;
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+}
+
+#extra-cash-slider {
+  width: 100%;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+#extra-cash-number {
+  width: 9.5rem;
+  min-height: 44px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  padding: 8px 12px;
+}
+
+.extra-cash-total {
+  margin: 8px 0;
+  color: var(--text);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.extra-presets {
+  justify-content: flex-start;
+}
+
+.extra-presets button.is-on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+@media (min-width: 900px) {
+  .app {
+    overflow-x: hidden;
+  }
+
+  .columns {
+    min-width: 0;
+    min-height: 0;
+    grid-template-rows: minmax(0, 1fr);
+    overflow: hidden;
+  }
+
+  .upgrades,
+  .dashboard {
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    max-height: calc(100vh - var(--topbar-height) - env(safe-area-inset-top) - 160px - 48px - 96px);
+  }
+
+  .upgrades {
+    overflow: hidden;
+  }
+
+  .upgrades-body {
+    min-height: 0;
+    overflow: auto;
+  }
+
+  .dashboard {
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-top: 0;
+  }
+
+  .hero {
+    padding-top: 14px;
+  }
+
+  .hero,
+  .metrics,
+  .tabs,
+  .tab-panel,
+  .chart-slot,
+  .library-slot {
+    flex: 0 0 auto;
+    min-height: auto;
+  }
+
+  .tabs {
+    position: sticky;
+    top: 0;
+    z-index: 6;
+    margin: 0 -16px;
+    padding: 8px 16px 10px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .tab-panel,
+  #panel-home {
+    overflow: visible;
+    max-height: none;
+  }
+
+  .chart-slot {
+    overflow: visible;
+  }
+
+  .subscriber-chart {
+    display: block;
+    flex: none;
+    width: 100%;
+    height: 220px;
+    min-height: 200px;
+  }
+
+  .dashboard .mini-chart {
+    display: block;
+    width: 100%;
+    height: 140px;
+    min-height: 120px;
+  }
+
+  .chart-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .table-wrap {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  .hero,
+  .info-card,
+  .trophy,
+  .poster-title,
+  .tier-name,
+  .library-meta {
+    overflow-wrap: anywhere;
+  }
+}
+
 @media (max-width: 699px) {
   .overlay { padding: 10px; }
   .deal-layout { flex-direction: column; }
