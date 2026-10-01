@@ -14,23 +14,23 @@ One real second is one in-game day at 1×. Pause, 2×, and 4× sit in the top ba
 
 Setup offers Easy, Normal, and Hard, plus a Sandbox checkbox (no defeat, no random events) and an optional service name. Easy starts with $20,000 and two rivals. Normal starts with $10,000 and three. Hard starts with $6,000 and four, and bad events hit harder. Tick **Don't show this again** on How to Play to skip that guide on later new games.
 
-The top bar shows cash, subscribers, the day, and a monthly price slider ($2.00–$20.00). Cash turns red when it is negative. Rising stats flash green and show a `+` change. Falling stats flash red and show a `-` change. The slider line reads `Growth: High / Medium / Low` and `Churn: High / Medium / Low`. Brand sits under the service name. Timed effects show as chips with days remaining.
+The top bar shows cash, a credit bar, subscribers, the day, and a monthly price slider ($2.00–$20.00). Cash turns red and shows an In debt chip when it is negative. A purchase you can afford in cash is Buy. A purchase that fits inside the credit limit is Buy on credit and shows the balance after. Anything past the limit stays grey. The first time you go into debt, the game explains daily interest. Rising stats flash green and show a `+` change. Falling stats flash red and show a `-` change. The slider line reads `Growth: High / Medium / Low` and `Churn: High / Medium / Low`. A jump of more than $2 raises churn for 14 days. An optional ad-supported tier sits under the slider. Brand sits under the service name, with the subscriber hero, milestone bar, crowd of TV icons, market-share bar, and the Road to Empire meters. Timed effects show as chips with days remaining.
 
-Buy growth, retention, and platform upgrades on the left. Each repeat purchase raises that upgrade's next price by 15%. Cards you cannot afford stay grey. Commissioning an original opens a picker for genre and budget. Movie libraries and sports rights are contracts.
+Buy growth, retention, and platform upgrades on the left. Each repeat purchase raises that upgrade's next price by 15%. The Content desk licenses famous titles or creates an original. Sports packages are contracts: Football, Basketball, Tennis, and Motorsport.
 
 The right side has Home, Analytics, Regions, Rivals, and Trophies. Home keeps the subscriber graph and the poster library. Click a tile for genre, release day, hit or flop, freshness, and upkeep. The event log under the dashboard keeps the newest line at the top and can filter All, Money, Events, or Rivals.
 
 Reset asks for confirmation, then returns to the title screen and clears the save. The footer reads "Created by OJ Spenny Gaming" on the dashboard, the title screen, How to Play, and the win screen.
 
-The game saves to `localStorage` every 10 seconds, and also when you buy, release the price slider, leave the page, or win or lose. Opening the page restores the saved run. If you were away, up to five minutes comes back at reduced efficiency with a welcome summary. Milestones you already passed do not pop up again after a reload. Settings can export or import that save as a text file.
+The game saves to `localStorage` every 10 seconds, and also when you buy, release the price slider, leave the page, or win or lose. Older saves still load. Continue is the only path that catches up time away, up to five minutes at reduced efficiency, and that catch-up does not advance a bankruptcy countdown or the empire hold. Milestones you already passed do not pop up again after a reload. Settings can export or import a save, replay How to Play, reset the tutorial, and refresh the catalogue.
 
 ## Catalogue
 
-Genres are Comedy, Drama, Sport, Kids, Documentary, and Reality. Budgets are Low (5 days, $1,800), Standard (10 days, $4,500), and Premium (20 days, $12,000). Higher budgets cost more, take longer, and hit more often.
+The Content desk loads a catalogue from TMDB and falls back to `data/fallback.json` if the network fails. That fallback shows an Offline catalogue note. Shelves cover trending, critics, crowd pleasers, genres, and local originals for unlocked regions. Search still works on the live catalogue. A licensed title can be owned once. Offers rotate about every 30 days. TV contracts last 90 days and films 180. Sports packages last 90 days.
 
-On release the title rolls a hit, an average result, or a flop. A hit adds a HIT badge, 50% more quality on that title, and +50% growth for 30 days. A flop keeps half the quality and nicks the brand. Freshness fades over 120 days, so old titles contribute less. Three genres on the service add 10% quality. Five add 20%. Genre popularity drifts between 0.8× and 1.4× every 60 days, and the hottest one shows a Trending chip.
+Create an original by picking a format, a typed or Surprise title, a lead and a supporting actor, a fictional director, a budget, and a marketing spend. Low takes about 5 days, Standard about 10, and Premium about 20, adjusted by the format and the director. Review Day shows critic and audience scores and a fictional headline. Tags are HIT, FLOP, Critics' Darling, and Guilty Pleasure. Series can order a new season from the title card.
 
-A movie library lasts 180 days. Sports rights last 90 days and boost growth while the contract is live. Ten days before expiry you renew or let it go. Each renewal costs 20% more than the last.
+Freshness fades over 120 days. Three genres add 10% quality. Five add 20%. Trends start from the TMDB trending shelf and drift between 0.8× and 1.4× every 60 days. Ten days before a contract ends you renew or let it go. Each renewal costs 20% more and scales with the audience.
 
 ## The rest of the company
 
@@ -38,11 +38,11 @@ Random events are listed in `EVENTS` inside `game.js`. One can fire every few we
 
 Rivals share the pool of new viewers with you. The leaderboard shows rank, subscribers, the last 30 days, and market share. Click a rival for a short graph.
 
-You start in the UK. Europe, North America, Asia-Pacific, and Latin America can be unlocked. Without a localisation upgrade, growth in that region is halved. The subscriber total is the sum of the regions, and the million-subscriber win uses that total.
+You start in the UK. Europe, North America, Asia-Pacific, and Latin America can be unlocked. Without a localisation upgrade, growth in that region is halved. The subscriber total is the sum of the regions.
 
-Brand runs from 0 to 100. It moves growth by up to 20% and hit chance by up to 5 points. Hits, awards, and a strong catalogue raise it. Flops, scandals, and a price above $15 lower it.
+Brand runs from 0 to 100. It moves growth and the value of the company. Hits and awards raise it. Flops, a price above $15, and heavy credit use lower it.
 
-Twenty trophies sit on the trophy shelf. Each one adds 1% growth for the rest of the run. Win, lose, or sell, and the score is stored with the top five for that difficulty.
+Trophies sit on the shelf. Each one adds 1% growth for the rest of the run. Win, lose, or sell, and the score is stored with the top five for that difficulty.
 
 ## Upgrades
 
@@ -62,16 +62,20 @@ Starting position on Normal:
 
 Each day:
 
-- Subscription revenue = paying subscribers × (monthly price / 30)
-- Ad revenue = free viewers × $0.03
-- Paying growth = base growth × content quality × marketing multiplier × price attractiveness
-- Base growth = 1.5 + paying subscribers × 0.008
-- Price attractiveness falls as the price rises ($5 = 1, about 1.8 at $2, about 0.4 at $20)
-- Churn rises with price, falls with content quality and recommendations, and includes a buffering penalty until servers catch up
-- Daily costs = running costs + content upkeep
-- Running costs = $8 + paying subscribers × $0.004
+- Subscription revenue = paying subscribers × (monthly price / 30). The ad-supported tier blends in a cheaper rate.
+- Serving each subscriber costs money every day, so a $2 price can lose money as the audience grows.
+- Content upkeep rises as the audience gets larger.
+- Growth is capped by a price-sensitive share of the regions you have unlocked.
+- Churn rises with price, falls with content quality and recommendations, and includes a buffering penalty until servers catch up.
+- Daily costs = running costs + scaled content upkeep + interest while cash is negative.
+- Credit starts at $75,000 on Easy, $50,000 on Normal, and $30,000 on Hard, then grows with recent revenue and brand. Interest is 0.1% of the overdraft per day, and 0.15% on Hard.
+- Company value = average daily profit over the last 30 days × 365 × a multiple, plus subscribers × value per subscriber, plus cash, plus brand × brand value. Negative cash is the debt, and it is not subtracted twice.
 
-Milestones pop up at 1,000 (Local Player), 10,000 (Regional Streamer), and 100,000 (National Contender). Win at 1,000,000 subscribers with the Global Giant screen. Lose if cash stays strictly below -$50,000 for 30 days in a row.
+Milestones are 1,000 (Local Player), 10,000 (Regional Streamer), 100,000 (National Contender), 1,000,000 (Global Contender), and 5,000,000 (Industry Leader). None of those is the win.
+
+Streaming Empire requires holding all three goals for 30 days. On Normal that is $150,000,000 company value, 5,000,000 subscribers, and a healthy business: profitable for 60 days with debt under 25% of the credit limit. Easy is $50,000,000 and 2,000,000 subscribers. Hard is $400,000,000 and 10,000,000. A Normal run at 1× is aimed at roughly 20 to 30 minutes. Sandbox still charges interest and can reach the empire, and it does not go bankrupt.
+
+Bankruptcy starts when cash falls below minus the credit limit. You have 30 days to climb back. The countdown resets if you do. Sandbox has no countdown. The loss screen offers Try again.
 
 Cash is shown in whole dollars (`$12,450`, or `-$50,000` when negative). Subscriber totals below 10,000 keep a thousands separator. From 10,000 upward they use one decimal with the remainder dropped, so 12,450 is `12.4K` and 1,200,000 is `1.2M`.
 
@@ -89,6 +93,7 @@ StreamCo.start()
 StreamCo.reset()
 StreamCo.saveGame()
 StreamCo.loadGame()
+StreamCo.balanceTest()
 ```
 
 `setContentQuality`, `setMarketingMultiplier`, and `setContentUpkeep` still override the formulas until the next purchase or reload. Owned upgrades are what get saved.

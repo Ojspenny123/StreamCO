@@ -63,15 +63,37 @@ const BUDGETS = {
 const LICENSES = {
   movies: { id: "movies", name: "Movie library", genre: "Documentary", title: "The Vault Catalogue", cost: 5000, days: 180, quality: 2.4, upkeep: 55 },
   sports: { id: "sports", name: "Sports rights", genre: "Sport", title: "Live Fixture Pack", cost: 50000, days: 90, quality: 1.4, upkeep: 420, marketing: 0.8 },
+  football: { id: "football", name: "Football Package", genre: "Sport", title: "Football Package", cost: 24000, days: 90, quality: 1.7, upkeep: 210, marketing: 0.28 },
+  basketball: { id: "basketball", name: "Basketball Package", genre: "Sport", title: "Basketball Package", cost: 20000, days: 90, quality: 1.5, upkeep: 180, marketing: 0.22 },
+  tennis: { id: "tennis", name: "Tennis Package", genre: "Sport", title: "Tennis Package", cost: 14000, days: 90, quality: 1.2, upkeep: 120, marketing: 0.12 },
+  motorsport: { id: "motorsport", name: "Motorsport Package", genre: "Sport", title: "Motorsport Package", cost: 26000, days: 90, quality: 1.6, upkeep: 200, marketing: 0.24 },
 };
+if (CONFIG.sports) {
+  Object.keys(CONFIG.sports).forEach((id) => {
+    LICENSES[id] = Object.assign({ id, marketing: 0.2 }, CONFIG.sports[id]);
+  });
+}
 
 const REGIONS = [
-  { id: "uk", name: "United Kingdom", tam: 80000, tolerance: 1, favourite: "Comedy", unlock: 0, localise: 0, rival: "flixora", color: "#E50914" },
-  { id: "europe", name: "Europe", tam: 150000, tolerance: 0.95, favourite: "Drama", unlock: 8000, localise: 4000, rival: "primetime", color: "#4C6FFF" },
-  { id: "na", name: "North America", tam: 260000, tolerance: 1.15, favourite: "Reality", unlock: 16000, localise: 7000, rival: "streamly", color: "#F5A623" },
-  { id: "apac", name: "Asia-Pacific", tam: 220000, tolerance: 0.8, favourite: "Kids", unlock: 18000, localise: 7000, rival: "cinebox", color: "#2ECC71" },
-  { id: "latam", name: "Latin America", tam: 130000, tolerance: 0.75, favourite: "Sport", unlock: 10000, localise: 4500, rival: null, localName: "Onda Max", color: "#C46BFF" },
+  { id: "uk", name: "United Kingdom", tam: 4200000, tolerance: 1, favourite: "Comedy", unlock: 0, localise: 0, rival: "flixora", color: "#E50914" },
+  { id: "europe", name: "Europe", tam: 9000000, tolerance: 0.92, favourite: "Drama", unlock: 28000, localise: 12000, rival: "primetime", color: "#4C6FFF" },
+  { id: "na", name: "North America", tam: 16000000, tolerance: 1.2, favourite: "Reality", unlock: 52000, localise: 18000, rival: "streamly", color: "#F5A623" },
+  { id: "apac", name: "Asia-Pacific", tam: 14000000, tolerance: 0.78, favourite: "Kids", unlock: 64000, localise: 18000, rival: "cinebox", color: "#2ECC71" },
+  { id: "latam", name: "Latin America", tam: 8000000, tolerance: 0.72, favourite: "Sport", unlock: 36000, localise: 14000, rival: null, localName: "Onda Max", color: "#C46BFF" },
 ];
+
+(CONFIG.regions || []).forEach((patch) => {
+  const region = REGIONS.find((item) => item.id === patch.id);
+  if (!region) return;
+  ["tam", "tolerance", "unlock", "localise"].forEach((key) => {
+    if (patch[key] != null) region[key] = patch[key];
+  });
+});
+if (CONFIG.budgets) {
+  Object.keys(CONFIG.budgets).forEach((id) => {
+    if (BUDGETS[id]) Object.assign(BUDGETS[id], CONFIG.budgets[id]);
+  });
+}
 
 const RIVAL_ROSTER = [
   { id: "flixora", name: "Flixora", color: "#FF6B4A", personality: "aggressive", blurb: "Undercuts on price and spends heavily on ads.", price: 4, quality: 2.4, marketing: 1.45, brand: 46, subscribers: 180 },
@@ -81,9 +103,11 @@ const RIVAL_ROSTER = [
 ];
 
 const UPGRADES = [
-  { id: "commission", group: "Content", name: "Commission an original", effect: "Pick a genre and a budget", action: "commission", icon: "sitcom" },
-  { id: "movies", group: "Content", name: "License a movie library", effect: "180-day catalogue contract", action: "license", cost: 5000, icon: "movies" },
-  { id: "sports", group: "Content", name: "Sign sports rights", effect: "90-day deal, heavy upkeep", action: "license", cost: 50000, icon: "sports" },
+  { id: "commission", group: "Content", name: "Content desk", effect: "Acquire a title or create an original", action: "commission", icon: "sitcom" },
+  { id: "football", group: "Content", name: "Football Package", effect: "90-day sports deal", action: "license", icon: "sports" },
+  { id: "basketball", group: "Content", name: "Basketball Package", effect: "90-day sports deal", action: "license", icon: "sports" },
+  { id: "tennis", group: "Content", name: "Tennis Package", effect: "90-day sports deal", action: "license", icon: "sports" },
+  { id: "motorsport", group: "Content", name: "Motorsport Package", effect: "90-day sports deal", action: "license", icon: "sports" },
   { id: "social", group: "Growth", name: "Social media campaign", effect: "+10% growth", cost: 2500, marketing: 0.1, icon: "social", event: "The social campaign is picking up shares." },
   { id: "tv", group: "Growth", name: "TV advertising", effect: "+25% growth", cost: 8000, marketing: 0.25, icon: "tv", event: "The TV spot is on the air." },
   { id: "app", group: "Growth", name: "Mobile app", effect: "+15% growth", cost: 12000, marketing: 0.15, icon: "app", event: "The mobile app is in people's pockets." },
@@ -96,7 +120,8 @@ const MILESTONES = [
   { id: "local", at: 1000, name: "Local Player", line: "A thousand people pressed play." },
   { id: "regional", at: 10000, name: "Regional Streamer", line: "Your catalogue is the talk of the region." },
   { id: "national", at: 100000, name: "National Contender", line: "The whole country is watching." },
-  { id: "global", at: 1000000, name: "Global Giant", line: "A million subscribers. The world is watching.", win: true },
+  { id: "global", at: 1000000, name: "Global Contender", line: "A million subscribers. The world is watching." },
+  { id: "leader", at: 5000000, name: "Industry Leader", line: "Five million subscribers. The industry is taking notes." },
 ];
 
 const ICONS = {
@@ -112,9 +137,10 @@ const ICONS = {
 };
 
 const TUTORIAL = [
-  { selector: "#price-slider", text: "Monthly price changes growth and churn. Five dollars is the balanced point. Above fifteen, the brand starts to sour." },
-  { selector: ".upgrades", text: "Commission originals by genre and budget. Bigger budgets take longer and hit more often. Licences expire." },
-  { selector: "#posters", text: "The library shows work in production and titles on the service. Click a tile for freshness, upkeep, and the contract." },
+  { selector: "#price-slider", text: "Price changes growth and churn. Cheap grows fast and can lose money. Raise it gradually." },
+  { selector: ".upgrades", text: "The content desk acquires real titles or builds originals. Sports packages are contracts." },
+  { selector: "#cash-value", text: "You can buy on credit up to the limit. Interest is charged every day the balance is negative." },
+  { selector: "#posters", text: "The library shows productions and titles. Click a tile for scores, cast, freshness, and the contract." },
   { selector: ".event-log", text: "Newest news sits at the top. Filter it when money, events, and rivals start talking over each other." },
 ];
 
@@ -290,6 +316,25 @@ function createInitialState(difficultyId) {
     scoreSaved: false,
     serviceName: SERVICE_NAME,
     sandbox: false,
+    profitHistory: [],
+    profitableStreak: 0,
+    sweetStreak: 0,
+    empireHold: 0,
+    explainedDebt: false,
+    boughtOnCredit: false,
+    debtRepaid: 0,
+    highCreditDays: 0,
+    creditWarned: false,
+    creditBonus: 0,
+    touchedHighCredit: false,
+    priceHikeDays: 0,
+    priceAnchor: STARTING_MONTHLY_PRICE,
+    adTier: false,
+    trendsSeeded: false,
+    localHits: {},
+    risingStarHit: false,
+    criticsDarling: false,
+    aListCast: 0,
     savedAt: Date.now(),
   };
 }
@@ -329,8 +374,10 @@ function totalTam() {
 
 function freshnessOf(title) {
   if (title.status !== "released") return 1;
+  const rules = econ();
+  const span = (rules.freshnessDays || 120) * (title.outcome === "darling" ? 1.45 : 1);
   const age = Math.max(0, state.day - (title.releaseDay || 0));
-  return clamp(1 - age / 120, 0.2, 1);
+  return clamp(1 - age / span, rules.freshnessFloor || 0.2, 1);
 }
 
 function titleContribution(title) {
@@ -355,9 +402,11 @@ function currentQuality() {
     quality += titleContribution(title);
   });
   const count = releasedGenres().size;
-  if (count >= 5) quality *= 1.2;
-  else if (count >= 3) quality *= 1.1;
-  return quality;
+  const rules = econ();
+  if (count >= 5) quality *= rules.variety5 || 1.2;
+  else if (count >= 3) quality *= rules.variety3 || 1.1;
+  const damp = rules.qualityDamp || 1;
+  return damp === 1 ? quality : Math.pow(Math.max(quality, 0.2), damp);
 }
 
 function varietyLabel() {
@@ -368,7 +417,7 @@ function varietyLabel() {
 }
 
 function activeSports() {
-  return titles.some((title) => title.licenseId === "sports" && title.status === "released" && title.contractDays > 0 && !effects.some((effect) => effect.sportsPause));
+  return titles.some((title) => title.genre === "Sport" && title.kind === "licensed" && title.status === "released" && title.contractDays > 0 && !effects.some((effect) => effect.sportsPause));
 }
 
 function currentMarketing() {
@@ -377,7 +426,12 @@ function currentMarketing() {
   UPGRADES.forEach((upgrade) => {
     if (upgrade.marketing) marketing += upgrade.marketing * ownedCount(upgrade.id);
   });
-  if (activeSports()) marketing += LICENSES.sports.marketing;
+  if (!effects.some((effect) => effect.sportsPause)) {
+    titles.forEach((title) => {
+      const license = title.licenseId && LICENSES[title.licenseId];
+      if (license && license.marketing && title.status === "released" && title.contractDays > 0) marketing += license.marketing;
+    });
+  }
   return Math.max(0.4, marketing);
 }
 
@@ -394,26 +448,138 @@ function serverLevel() {
   return ownedCount("servers") + (effects.some((effect) => effect.servers) ? 1 : 0);
 }
 
+function econ() {
+  return CONFIG.economy || {};
+}
+
 function priceAttractiveness(monthlyPrice) {
-  return Math.pow(5 / monthlyPrice, 0.65);
+  const rules = econ();
+  return Math.pow((rules.anchorPrice || 8) / monthlyPrice, rules.pricePower || 0.85);
 }
 
 function churnRate(monthlyPrice, contentQuality, recommendationLevel = 0, serverLevelValue = 0) {
+  const rules = econ();
   const span = MAX_MONTHLY_PRICE - MIN_MONTHLY_PRICE;
-  const priceLift = Math.pow((monthlyPrice - MIN_MONTHLY_PRICE) / span, 1.35);
-  const base = 0.0015 + priceLift * 0.02;
-  const qualityRelief = 1 / (1 + Math.max(0, contentQuality - 1) * 0.22);
+  const priceLift = Math.pow((monthlyPrice - MIN_MONTHLY_PRICE) / span, rules.churnPower || 1.45);
+  const base = (rules.churnBase || 0.0016) + priceLift * (rules.churnPrice || 0.028);
+  const qualityRelief = 1 / (1 + Math.max(0, contentQuality - 1) * (rules.qualityRelief || 0.18));
   const buffering = BUFFERING_CHURN * Math.pow(0.5, serverLevelValue);
-  const rate = (base * qualityRelief + buffering) * Math.pow(0.9, recommendationLevel);
-  return clamp(rate, 0.001, 0.08);
+  const hike = state && state.priceHikeDays > 0 ? (rules.hikeChurn || 0) : 0;
+  const rate = (base * qualityRelief + buffering + hike) * Math.pow(0.9, recommendationLevel);
+  return clamp(rate, 0.001, rules.churnCap || 0.09);
 }
 
 function baseGrowth(subscribers) {
-  return BASE_FLAT_SIGNUPS + subscribers * ORGANIC_SIGNUP_RATE;
+  const rules = econ();
+  return (rules.flatSignups || BASE_FLAT_SIGNUPS) + subscribers * (rules.organicRate || ORGANIC_SIGNUP_RATE);
 }
 
 function subscriberGrowth(subscribers, contentQuality, marketingMultiplier, monthlyPrice) {
   return baseGrowth(subscribers) * contentQuality * marketingMultiplier * priceAttractiveness(monthlyPrice);
+}
+
+function revenuePerSub(price) {
+  const rules = econ();
+  if (!state || !state.adTier) return price / 30;
+  const mix = rules.adMix || 0;
+  return ((price * (1 - mix) + (rules.adPrice || 0) * mix) / 30) + (rules.adDaily || 0) * mix;
+}
+
+function upkeepScale(subs) {
+  const rules = econ();
+  return 1 + (subs / (rules.contentScaleSubs || 1500000)) * (rules.contentScale || 0);
+}
+
+function interestRate() {
+  const credit = CONFIG.credit || {};
+  if (state && state.difficulty === "hard") return credit.hardDailyInterest || 0.0015;
+  return credit.dailyInterest || 0.001;
+}
+
+function dailyInterest(cash) {
+  if (!(cash < 0)) return 0;
+  return Math.abs(cash) * interestRate();
+}
+
+function creditLimit() {
+  const credit = CONFIG.credit || {};
+  const start = credit[state.difficulty] || credit.normal || 50000;
+  const recent = analytics.slice(-30);
+  const avg = recent.length ? recent.reduce((sum, row) => sum + (row.revenue || 0), 0) / recent.length : 0;
+  return Math.max(start, avg * (credit.revenueMultiple || 45) + (state.brand || 0) * (credit.brandBonus || 0)) + (state.creditBonus || 0);
+}
+
+function canSpend(cost) {
+  return state.cash - cost >= -creditLimit();
+}
+
+function payKind(cost) {
+  if (state.cash >= cost) return "cash";
+  if (canSpend(cost)) return "credit";
+  return "over";
+}
+
+function trySpend(cost) {
+  if (!canSpend(cost)) return false;
+  const next = roundCents(state.cash - cost);
+  if (hasUi() && !simOffline) {
+    const limit = creditLimit();
+    const first = state.cash >= 0 && next < 0 && !state.explainedDebt;
+    const close = Math.max(0, -next) > limit * ((CONFIG.credit || {}).confirmRatio || 0.8);
+    if (first || close) {
+      const message = first
+        ? `This puts ${displayName()} in debt. Interest is charged every day until cash is back above zero.`
+        : `This uses most of the credit limit. Balance after: ${formatCash(next)}.`;
+      if (!window.confirm(message)) return false;
+      if (first) state.explainedDebt = true;
+    }
+  }
+  const wasClear = state.cash >= 0;
+  state.cash = next;
+  if (wasClear && state.cash < 0) {
+    state.explainedDebt = true;
+    state.boughtOnCredit = true;
+  }
+  return true;
+}
+
+function captureRate(price) {
+  const rules = econ();
+  return clamp(Math.pow((rules.captureAnchor || 7.5) / price, rules.capturePower || 0.72), rules.captureMin || 0.08, rules.captureMax || 0.55);
+}
+
+function marketCeiling(price) {
+  return Math.max(800, totalTam() * captureRate(price) * (0.75 + clamp(state.brand, 0, 100) / 200));
+}
+
+function saturation(subs, price) {
+  return clamp(1 - subs / marketCeiling(price), 0.05, 1);
+}
+
+function rivalPressure(price, quality) {
+  if (!rivals.length) return 1;
+  const rules = econ();
+  const avgPrice = rivals.reduce((sum, rival) => sum + rival.price, 0) / rivals.length;
+  const avgQuality = rivals.reduce((sum, rival) => sum + rival.quality, 0) / rivals.length;
+  if (price > avgPrice + (rules.rivalGapPrice || 3) && quality < avgQuality) return rules.rivalGapPenalty || 0.72;
+  return 1;
+}
+
+function companyValue() {
+  const rules = econ();
+  const recent = (state.profitHistory || []).slice(-30);
+  const avg = recent.length ? recent.reduce((sum, value) => sum + value, 0) / recent.length : 0;
+  return avg * 365 * (rules.profitMultiple || 0.22) + paidSubscribers() * (rules.valuePerSub || 16) + state.cash + state.brand * (rules.brandValue || 0);
+}
+
+function empireGoals() {
+  return empireTarget(state.difficulty || "normal");
+}
+
+function businessHealthy() {
+  const debt = Math.max(0, -state.cash);
+  const limit = Math.max(1, creditLimit());
+  return (state.profitableStreak || 0) >= (CONFIG.profitableDays || 60) && debt < limit * (CONFIG.healthyDebtRatio || 0.25);
 }
 
 function freeNetChange(freeUsers, freeTier, monthlyPrice, contentQuality, recommendationLevel, serverLevelValue) {
@@ -424,15 +590,16 @@ function freeNetChange(freeUsers, freeTier, monthlyPrice, contentQuality, recomm
 }
 
 function dailyRevenue(subscribers, monthlyPrice) {
-  return subscribers * (monthlyPrice / 30);
+  return subscribers * revenuePerSub(monthlyPrice);
 }
 
 function runningCosts(subscribers) {
-  return BASE_RUNNING_COST + subscribers * PER_SUBSCRIBER_RUNNING_COST;
+  const rules = econ();
+  return (rules.baseRunning || BASE_RUNNING_COST) + subscribers * (rules.perSubCost || PER_SUBSCRIBER_RUNNING_COST);
 }
 
 function dailyCosts(subscribers, contentUpkeep) {
-  return runningCosts(subscribers) + contentUpkeep;
+  return runningCosts(subscribers) + contentUpkeep * upkeepScale(subscribers) + dailyInterest(state ? state.cash : 0);
 }
 
 function appealOf(quality, marketing, price, brand) {
@@ -494,35 +661,62 @@ function formatQuality(quality) {
   return Number.isInteger(quality) ? String(quality) : quality.toFixed(1);
 }
 
-function snapshot() {
-  const paid = paidSubscribers();
+function forecast(price, subs) {
+  const rules = econ();
+  const paid = subs == null ? paidSubscribers() : subs;
   const quality = currentQuality();
   const marketing = currentMarketing();
-  const upkeep = currentUpkeep();
   const recommendations = ownedCount("recommendations");
   const servers = serverLevel();
   const freeUsers = state.freeUsers || 0;
-  const attractiveness = priceAttractiveness(state.monthlyPrice);
+  const attractiveness = priceAttractiveness(price);
   const tam = totalTam();
   let extraChurn = 0;
-  if (tam > 0 && paid > tam) extraChurn = clamp((paid / tam - 1) * 0.08, 0, 0.12);
-  const churn = clamp(churnRate(state.monthlyPrice, quality, recommendations, servers) + extraChurn, 0.001, 0.2);
-  const brandMod = 1 + clamp((state.brand - 50) / 50, -1, 1) * 0.2;
+  if (tam > 0 && paid > tam) extraChurn = clamp((paid / tam - 1) * 0.04, 0, 0.08);
+  const churn = clamp(churnRate(price, quality, recommendations, servers) + extraChurn, 0.001, rules.churnCap || 0.09);
+  const brandMod = 1 + clamp((state.brand - 50) / 50, -1, 1) * (rules.brandGrowth || 0.2);
   const effectMod = effects.reduce((product, effect) => product * (effect.growth || 1), 1);
   const achievementMod = 1 + achievements.size * 0.01;
-  const organic = subscriberGrowth(paid, quality, marketing, state.monthlyPrice) * brandMod * effectMod * achievementMod;
-  const playerAppeal = appealOf(quality, marketing, state.monthlyPrice, state.brand);
+  const sat = saturation(paid, price);
+  const gap = rivalPressure(price, quality);
+  const adBoost = state.adTier ? (rules.adGrowth || 1) : 1;
+  const organic = subscriberGrowth(paid, quality, marketing, price) * brandMod * effectMod * achievementMod * sat * gap * adBoost;
+  const playerAppeal = appealOf(quality, marketing, price, state.brand);
   const rivalAppeal = rivals.reduce((sum, rival) => sum + appealOf(rival.quality, rival.marketing, rival.price, rival.brand), 0);
   const share = playerAppeal / (playerAppeal + rivalAppeal || 1);
-  const newcomers = (1.2 + tam * 0.00004) * share;
+  const newcomers = ((rules.newcomerBase || 4) + tam * (rules.newcomerTam || 0)) * share * sat;
   const incoming = Math.max(0, organic + newcomers);
   const leaving = paid * churn;
   const effectRevenue = effects.reduce((sum, effect) => sum + (effect.revenuePerDay || 0), 0);
   const effectCost = effects.reduce((sum, effect) => sum + (effect.costPerDay || 0), 0);
   const adRevenue = freeUsers * FREE_USER_AD_REVENUE;
-  const revenue = dailyRevenue(paid, state.monthlyPrice) + adRevenue + effectRevenue;
-  const costs = dailyCosts(paid, upkeep) + effectCost + revenue * (state.revenueShare || 0);
-  const netFree = freeNetChange(freeUsers, ownedCount("free-tier"), state.monthlyPrice, quality, recommendations, servers);
+  const revenue = dailyRevenue(paid, price) + adRevenue + effectRevenue;
+  const interest = dailyInterest(state.cash);
+  const costs = dailyCosts(paid, currentUpkeep()) + effectCost + revenue * (state.revenueShare || 0);
+  const netFree = freeNetChange(freeUsers, ownedCount("free-tier"), price, quality, recommendations, servers);
+  return {
+    paid, quality, marketing, freeUsers, attractiveness, churn, incoming, leaving, revenue, costs, interest, adRevenue, netFree,
+    netPaid: incoming - leaving,
+    netCash: revenue - costs,
+    share,
+  };
+}
+
+function snapshot() {
+  const view = forecast(state.monthlyPrice);
+  const paid = view.paid;
+  const quality = view.quality;
+  const marketing = view.marketing;
+  const upkeep = currentUpkeep();
+  const freeUsers = view.freeUsers;
+  const attractiveness = view.attractiveness;
+  const churn = view.churn;
+  const incoming = view.incoming;
+  const leaving = view.leaving;
+  const adRevenue = view.adRevenue;
+  const revenue = view.revenue;
+  const costs = view.costs;
+  const netFree = view.netFree;
   state.subscribers = paid;
 
   return {
@@ -547,7 +741,7 @@ function snapshot() {
     growthLabel: growthLabel(attractiveness),
     churnRate: churn,
     churnLabel: churnLabel(churn),
-    bufferingChurn: BUFFERING_CHURN * Math.pow(0.5, servers),
+    bufferingChurn: BUFFERING_CHURN * Math.pow(0.5, serverLevel()),
     incoming,
     leaving,
     netPaid: incoming - leaving,
@@ -558,6 +752,13 @@ function snapshot() {
     dailyRevenue: revenue,
     dailyCosts: costs,
     netCash: revenue - costs,
+    interest: view.interest,
+    companyValue: companyValue(),
+    creditLimit: creditLimit(),
+    debt: Math.max(0, -state.cash),
+    empireHold: state.empireHold || 0,
+    adTier: !!state.adTier,
+    profitableStreak: state.profitableStreak || 0,
     owned: { ...owned },
     regions: JSON.parse(JSON.stringify(state.regions)),
     titles: titles.map((title) => ({ ...title, freshness: freshnessOf(title), contribution: titleContribution(title) })),
@@ -575,7 +776,7 @@ function regionWeights() {
     const region = state.regions[def.id];
     if (!region.unlocked) return 0;
     const loc = region.localised ? 1 : 0.5;
-    const priceFit = Math.pow((def.tolerance * 5) / state.monthlyPrice, 0.65);
+    const priceFit = Math.pow((def.tolerance * (econ().anchorPrice || 8)) / state.monthlyPrice, econ().pricePower || 0.85);
     const trend = state.genreTrends[def.favourite] || 1;
     const favouriteLive = titles.some((title) => titleContribution(title) > 0 && title.genre === def.favourite);
     return region.tam * loc * priceFit * trend * (favouriteLive ? 1.15 : 1);
@@ -650,9 +851,8 @@ function commission(genre, tierId) {
   if (state.status !== "playing") return false;
   const budget = BUDGETS[tierId];
   if (!budget || !GENRES.includes(genre)) return false;
-  if (state.cash < budget.cost) return false;
+  if (!trySpend(budget.cost)) return false;
   clearOverrides();
-  state.cash = roundCents(state.cash - budget.cost);
   const title = makeTitle({
     name: nextTitleName(genre),
     genre,
@@ -663,6 +863,8 @@ function commission(genre, tierId) {
     plannedQuality: budget.quality,
     plannedUpkeep: budget.upkeep,
     cost: budget.cost,
+    series: true,
+    format: genre === "Comedy" ? "sitcom" : "drama",
   });
   pushEvent(state.day, [{ text: `${title.name} enters production (${budget.name}, ${budget.days} days).`, tone: "neutral" }], "money");
   saveGame();
@@ -685,11 +887,10 @@ function signLicense(id, silent) {
   const def = LICENSES[id];
   if (!def || activeLicense(id)) return false;
   const cost = licenseCost(id);
-  if (state.cash < cost) return false;
+  if (!trySpend(cost)) return false;
   clearOverrides();
-  state.cash = roundCents(state.cash - cost);
   state.licenseGeneration[id] = (state.licenseGeneration[id] || 0) + 1;
-  if (id === "sports") state.sportsSigned = true;
+  if (id === "sports" || def.genre === "Sport") state.sportsSigned = true;
   const title = makeTitle({
     name: def.title,
     genre: def.genre,
@@ -729,9 +930,8 @@ function buyUpgrade(id) {
   if (upgrade.action === "license") return !!signLicense(id);
   const count = ownedCount(id);
   const cost = upgradeCost(upgrade, count);
-  if (state.cash < cost) return false;
+  if (!trySpend(cost)) return false;
   clearOverrides();
-  state.cash = roundCents(state.cash - cost);
   owned[id] = count + 1;
   pushEvent(state.day, [{ text: upgrade.event, tone: "neutral" }], "money");
   if (hasUi()) {
@@ -747,8 +947,7 @@ function unlockRegion(id) {
   const def = regionDef(id);
   const region = def && state.regions[id];
   if (!def || !region || region.unlocked || state.status !== "playing") return false;
-  if (state.cash < def.unlock) return false;
-  state.cash = roundCents(state.cash - def.unlock);
+  if (!trySpend(def.unlock)) return false;
   region.unlocked = true;
   pushEvent(state.day, [{ text: `${def.name} is on the map.`, tone: "up" }], "money");
   checkAchievements();
@@ -761,8 +960,7 @@ function localiseRegion(id) {
   const def = regionDef(id);
   const region = def && state.regions[id];
   if (!def || !region || !region.unlocked || region.localised || state.status !== "playing") return false;
-  if (state.cash < def.localise) return false;
-  state.cash = roundCents(state.cash - def.localise);
+  if (!trySpend(def.localise)) return false;
   region.localised = true;
   pushEvent(state.day, [{ text: `${def.name} now has subtitles, dubs, and local art.`, tone: "up" }], "money");
   saveGame();
@@ -795,27 +993,38 @@ function rollOutcome(budget) {
 
 function releaseOriginal(title) {
   const budget = BUDGETS[title.tier] || BUDGETS.low;
-  const outcome = rollOutcome(budget);
+  const scored = scoreRelease(title, budget);
   title.status = "released";
-  title.outcome = outcome;
+  title.outcome = scored.tag;
+  title.critic = scored.critic;
+  title.audience = scored.audience;
   title.releaseDay = state.day;
   title.upkeep = title.plannedUpkeep || budget.upkeep;
+  title.quality = scored.quality;
   state.releaseCount += 1;
-  if (outcome === "hit") {
-    title.quality = budget.quality * 1.5;
-    state.hitCount += 1;
-    changeBrand(4, "Hit");
-    effects.push({ id: `hit-${title.id}`, sourceId: title.id, label: `${title.name} is a hit`, days: 30, growth: 1.5 });
-    pushEvent(state.day, [{ text: `HIT! ${title.name} is everywhere. +50% growth for 30 days.`, tone: "up" }], "events");
-  } else if (outcome === "flop") {
-    title.quality = budget.quality * 0.5;
+  if (scored.tag === "hit" || scored.tag === "guilty") {
+    if (scored.tag === "hit") state.hitCount += 1;
+    changeBrand(scored.tag === "hit" ? 4 : 1, scored.tag === "hit" ? "Hit" : "Guilty pleasure");
+    effects.push({ id: `hit-${title.id}`, sourceId: title.id, label: `${title.name} is a ${scored.tag === "hit" ? "hit" : "guilty pleasure"}`, days: scored.tag === "hit" ? 30 : 18, growth: scored.tag === "hit" ? 1.5 : 1.28 });
+  } else if (scored.tag === "flop") {
     state.flopCount += 1;
     changeBrand(-3, "Flop");
-    pushEvent(state.day, [{ text: `${title.name} flopped. Half the quality, and the brand winced.`, tone: "down" }], "events");
+  } else if (scored.tag === "darling") {
+    state.criticsDarling = true;
+    changeBrand(5, "Critics' darling");
+    effects.push({ id: `darling-${title.id}`, sourceId: title.id, label: `${title.name} is a critics' darling`, days: 40, growth: 1.12 });
   } else {
-    title.quality = budget.quality;
-    pushEvent(state.day, [{ text: `${title.name} is out. Solid, not legendary.`, tone: "neutral" }], "events");
+    changeBrand(1, "Solid release");
   }
+  if (scored.spike > 0) addSubscribers(scored.spike);
+  if (title.localRegion && (scored.tag === "hit" || scored.audience >= 70)) {
+    state.localHits = state.localHits || {};
+    state.localHits[title.localRegion] = true;
+  }
+  if (title.cast && title.cast.some((actor) => actor.archetype === "Rising Star") && scored.tag === "hit") state.risingStarHit = true;
+  const line = reviewHeadline(title);
+  pushEvent(state.day, [{ text: line, tone: scored.tag === "flop" ? "down" : "up" }], "events");
+  if (hasUi() && !simOffline) enqueuePrompt({ type: "review", titleId: title.id, line });
   checkAchievements();
 }
 
@@ -837,11 +1046,12 @@ function expireLicense(title) {
 function renewTitle(id) {
   const title = titles.find((item) => item.id === id);
   if (!title) return false;
-  const cost = licenseCost(title.licenseId);
-  if (state.cash < cost) return false;
-  state.cash = roundCents(state.cash - cost);
-  state.licenseGeneration[title.licenseId] = (state.licenseGeneration[title.licenseId] || 0) + 1;
-  title.contractDays = LICENSES[title.licenseId].days;
+  const cost = renewalCost(title);
+  if (!trySpend(cost)) return false;
+  const known = title.licenseId && LICENSES[title.licenseId];
+  if (known) state.licenseGeneration[title.licenseId] = (state.licenseGeneration[title.licenseId] || 0) + 1;
+  else title.renewals = (title.renewals || 0) + 1;
+  title.contractDays = known ? known.days : (title.contractLength || 90);
   title.releaseDay = state.day;
   title.cost += cost;
   pendingRenew.delete(title.id);
@@ -860,10 +1070,15 @@ function dropLicense(id) {
   syncView();
 }
 
+function renewalCost(title) {
+  const base = title.licenseId ? licenseCost(title.licenseId) : Math.round((title.cost || 1000) * (CONFIG.renewRise || 1.2));
+  return Math.round(base * upkeepScale(paidSubscribers()));
+}
+
 function offerRenewal(title) {
   if (pendingRenew.has(title.id)) return;
   pendingRenew.add(title.id);
-  const cost = licenseCost(title.licenseId);
+  const cost = renewalCost(title);
   if (simOffline || !hasUi()) {
     if (state.cash >= cost + 2000) {
       renewTitle(title.id);
@@ -908,6 +1123,9 @@ function driftBrand(before) {
   if (state.monthlyPrice > 15) {
     passive -= 0.25;
     reason = "Price above $15";
+  } else if ((state.highCreditDays || 0) >= ((CONFIG.credit || {}).brandStrainDays || 12)) {
+    passive -= 0.15;
+    reason = "Investors nervous";
   } else if (before.netCash > 0) {
     passive += 0.12;
     reason = "Steady run";
@@ -932,9 +1150,12 @@ function tickRivals(playerBefore) {
   rivals.forEach((rival) => {
     const previous = rival.subscribers;
     const organic = subscriberGrowth(rival.subscribers, rival.quality, rival.marketing, rival.price);
-    const newcomers = (1.2 + tam * 0.00004) * (rivalAppealNow(rival) / (totalAppeal || 1));
+    const rules = econ();
+    const newcomers = ((rules.newcomerBase || 4) + tam * (rules.newcomerTam || 0)) * (rivalAppealNow(rival) / (totalAppeal || 1));
     const churn = churnRate(rival.price, rival.quality, 0, 1);
     let net = (organic + newcomers - rival.subscribers * churn) * difficulty().rivalStrength;
+    rival.quality += rules.rivalDrift || 0;
+    if (rival.subscribers > marketCeiling(rival.price) * 0.85) net *= 0.45;
     if (rival.personality === "chaotic") net *= 0.75 + random() * 0.7;
     if (rival.subscribers > tam * 0.45) net *= 0.7;
     const cap = rival.subscribers * 0.08 + 12;
@@ -984,30 +1205,40 @@ function rivalAct(rival) {
 }
 
 function growMarkets() {
+  const rate = econ().marketGrowth || 1.00035;
   REGIONS.forEach((def) => {
     const region = state.regions[def.id];
-    if (region.unlocked) region.tam *= 1.0012;
+    if (region.unlocked) region.tam *= rate;
   });
 }
 
 function checkEndings() {
   if (state.status !== "playing") return;
-  const paid = paidSubscribers();
-  if (paid >= WIN_SUBSCRIBERS) {
-    state.status = "won";
-    pushEvent(state.day, [{ text: "Global Giant. A million subscribers.", tone: "up" }], "events");
-    return;
+  const goals = empireGoals();
+  const valueOk = companyValue() >= goals.companyValue;
+  const subsOk = paidSubscribers() >= goals.subscribers;
+  const healthy = businessHealthy();
+  if (!simOffline) {
+    if (valueOk && subsOk && healthy) state.empireHold = (state.empireHold || 0) + 1;
+    else state.empireHold = 0;
+    if (state.empireHold >= (CONFIG.holdDays || 30)) {
+      state.status = "won";
+      pushEvent(state.day, [{ text: "Streaming Empire. The three goals held.", tone: "up" }], "events");
+      return;
+    }
   }
   if (!difficulty().canLose) {
     state.daysBelowLoseLine = 0;
     return;
   }
-  if (state.cash < LOSE_CASH) {
+  if (simOffline) return;
+  if (state.cash < -creditLimit()) {
     state.daysBelowLoseLine += 1;
+    const limitDays = (CONFIG.credit || {}).bankruptcyDays || 30;
     if (state.daysBelowLoseLine === 1 || state.daysBelowLoseLine === 10 || state.daysBelowLoseLine === 20) {
-      pushEvent(state.day, [{ text: `Debt streak ${state.daysBelowLoseLine}/${LOSE_STREAK_DAYS}. Cash is ${formatCash(state.cash)}.`, tone: "warn" }], "money");
+      pushEvent(state.day, [{ text: `Bankruptcy countdown ${state.daysBelowLoseLine}/${limitDays}.`, tone: "warn" }], "money");
     }
-    if (state.daysBelowLoseLine >= LOSE_STREAK_DAYS) {
+    if (state.daysBelowLoseLine >= limitDays) {
       state.status = "lost";
       pushEvent(state.day, [{ text: "The service closes.", tone: "down" }], "money");
     }
@@ -1041,7 +1272,9 @@ function applyEffect(effect) {
     changeBrand(effect.value, effect.reason || effect.label, !!effect.scale);
   } else if (effect.type === "cash") {
     const value = effect.value < 0 && effect.scale ? effect.value * difficulty().severity : effect.value;
+    if (value < 0 && !canSpend(-value)) return;
     state.cash = roundCents(state.cash + value);
+    if (value < 0 && state.cash < 0) state.boughtOnCredit = true;
   } else if (effect.type === "subs") {
     const paid = paidSubscribers();
     const delta = effect.relative ? paid * effect.value : effect.value;
@@ -1065,6 +1298,18 @@ function applyEffect(effect) {
   } else if (effect.type === "share") {
     state.cash = roundCents(state.cash + effect.cash);
     state.revenueShare = (state.revenueShare || 0) + effect.value;
+  } else if (effect.type === "credit-bonus") {
+    state.creditBonus = Math.max(-creditLimit() * 0.5, (state.creditBonus || 0) + effect.value);
+    pushEvent(state.day, [{ text: `Credit limit ${effect.value > 0 ? "raised" : "cut"} by ${formatCash(Math.abs(effect.value))}.`, tone: effect.value > 0 ? "up" : "warn" }], "money");
+  } else if (effect.type === "clear-debt") {
+    if (state.cash < 0) {
+      state.debtRepaid = (state.debtRepaid || 0) + (-state.cash);
+      state.cash = 0;
+      pushEvent(state.day, [{ text: "The overdraft is cleared.", tone: "up" }], "money");
+    }
+  } else if (effect.type === "debt-dip") {
+    const ratio = creditLimit() > 0 ? Math.max(0, -state.cash) / creditLimit() : 0;
+    effects.push({ id: `fx-dip-${state.day}`, label: "Rival launch", days: 12, growth: ratio > 0.5 ? 0.72 : 0.9 });
   } else if (effect.type === "price") {
     state.monthlyPrice = clamp(roundCents(state.monthlyPrice + effect.delta), MIN_MONTHLY_PRICE, MAX_MONTHLY_PRICE);
   } else if (effect.type === "flag") {
@@ -1172,9 +1417,9 @@ const EVENTS = [
     { id: "discount", label: "Cut the price", summary: "Price drops by $1. Brand loses 1.", effects: [{ type: "price", delta: -1 }, { type: "brand", value: -1, reason: "Discount apology" }] },
     { id: "ignore", label: "Ignore the pile-on", summary: "Brand -4 and a growth dip for two weeks.", effects: [{ type: "brand", value: -4, reason: "Review bomb", scale: true }, { type: "growth", value: 0.85, days: 14, label: "Review bomb" }] },
   ] },
-  { id: "scandal", emoji: "🎭", title: "The lead is trending", description: "Not for the performance. The group chat has picked a side, and it is not yours.", weight: 3, minDay: 16, condition: () => titles.some((title) => title.kind === "original" && title.status === "released"), autoOption: 0, options: [
-    { id: "pull", label: "Pull the show", summary: "That title's quality leaves with it. Brand steadies.", effects: [{ type: "pull" }, { type: "brand", value: 1, reason: "Pulled the show" }] },
-    { id: "ride", label: "Ride it out", summary: "Brand -6, but infamous shows travel. +25% growth for 10 days.", effects: [{ type: "brand", value: -6, reason: "Scandal", scale: true }, { type: "growth", value: 1.25, days: 10, label: "Infamous buzz" }] },
+  { id: "scandal", emoji: "🎭", title: "A cast member is late", description: "Someone missed the morning call. The rumour mill is doing cardio. It is about the schedule, nothing darker.", weight: 3, minDay: 16, condition: () => titles.some((title) => (title.kind === "original" || title.cast) && title.status === "released"), autoOption: 0, options: [
+    { id: "pull", label: "Delay a scene", summary: "The newest original loses a little quality. The brand steadies.", effects: [{ type: "pull" }, { type: "brand", value: 1, reason: "Handled the delay" }] },
+    { id: "ride", label: "Shoot around them", summary: "Brand -2, and a short burst of curious viewers.", effects: [{ type: "brand", value: -2, reason: "Late to set", scale: true }, { type: "growth", value: 1.12, days: 8, label: "Curious viewers" }] },
   ] },
   { id: "buyout", emoji: "🤝", title: "An offer for the lot", description: "A rival slides a number across the table. It is not an insult. It is also not a dynasty.", weight: 2, minDay: 45, condition: () => paidSubscribers() > 800, autoOption: 1, options: [
     { id: "sell", label: "Sell", summary: "The run ends now with a modest score.", effects: [{ type: "sold" }] },
@@ -1256,12 +1501,44 @@ const EVENTS = [
     { id: "rent", label: "Pay $2,000", summary: "Buffering penalty halves for 20 days.", effects: [{ type: "cash", value: -2000 }, { type: "servers", days: 20, label: "Burst servers" }] },
     { id: "no", label: "Make do", summary: "The spinner stays.", effects: [] },
   ] },
+  { id: "limit-up", emoji: "🏦", title: "The bank likes the logo", description: "A cheerful letter offers a larger credit limit. The interest rate does not get kinder.", weight: 2, minDay: 20, autoOption: 0, options: [
+    { id: "accept", label: "Take the room", summary: "Credit limit rises.", effects: [{ type: "credit-bonus", value: 20000 }] },
+    { id: "no", label: "Stay as you are", summary: "No extra rope.", effects: [] },
+  ] },
+  { id: "limit-down", emoji: "📉", title: "The bank clears its throat", description: "Your limit is being trimmed. Highly borrowed services hear this first.", weight: 2, minDay: 25, condition: () => creditLimit() > 0 && Math.max(0, -state.cash) > creditLimit() * 0.45, autoOption: 0, options: [
+    { id: "nod", label: "Sign the new terms", summary: "The credit limit drops.", effects: [{ type: "credit-bonus", value: -15000 }] },
+  ] },
+  { id: "wipe", emoji: "🧽", title: "An investor with a cloth", description: "They will clear the overdraft if you hand them a slice of daily revenue.", weight: 2, minDay: 18, condition: () => state.cash < -5000 && !state.revenueShare, autoOption: 1, options: [
+    { id: "deal", label: "Clear the debt", summary: "Cash returns to zero. 6% of revenue leaves each day.", effects: [{ type: "clear-debt" }, { type: "share", cash: 0, value: 0.06 }] },
+    { id: "keep", label: "Keep the debt", summary: "The overdraft stays. So does the whole pie.", effects: [] },
+  ] },
+  { id: "interview", emoji: "🎙️", title: "A very nice interview", description: "A cast member chats about the show and remembers everyone's name. The clip is kind.", weight: 3, minDay: 12, condition: () => titles.some((title) => title.status === "released"), autoOption: 0, options: [
+    { id: "share", label: "Share the clip", summary: "+2 Brand and a little growth.", effects: [{ type: "brand", value: 2, reason: "Viral interview" }, { type: "growth", value: 1.12, days: 8, label: "Kind interview" }] },
+  ] },
+  { id: "buzz", emoji: "✨", title: "Awards buzz", description: "A fictional podcast says your newest title is 'in the conversation'. Nobody has won anything yet.", weight: 2, minDay: 20, condition: () => titles.some((title) => title.status === "released" && (title.critic || 0) >= 70), autoOption: 0, options: [
+    { id: "smile", label: "Enjoy the rumour", summary: "+3 Brand.", effects: [{ type: "brand", value: 3, reason: "Awards buzz" }] },
+  ] },
+  { id: "rival-launch", emoji: "🚀", title: "A rival opens a new lane", description: "One of the other services just launched something loud. Borrowed money makes this sting more.", weight: 2, minDay: 30, autoOption: 0, options: [
+    { id: "match", label: "Answer with marketing", summary: "Spend $3,000 or sit through a growth dip. The dip is worse in debt.", effects: [{ type: "cash", value: -3000 }, { type: "growth", value: 1.08, days: 12, label: "Answered the launch" }] },
+    { id: "wait", label: "Let them have the week", summary: "Growth cools. It cools harder if you are highly in debt.", effects: [{ type: "debt-dip" }] },
+  ] },
+  { id: "device", emoji: "📺", title: "A new rectangle, again", description: "Shops are full of a gadget that plays video. Your app either fits or it doesn't.", weight: 2, minDay: 16, autoOption: 0, options: [
+    { id: "ship", label: "Rush a build ($2,500)", summary: "Growth bump if you already have the mobile app.", effects: [{ type: "cash", value: -2500 }, { type: "tech" }] },
+    { id: "later", label: "Ship it next month", summary: "No spend. A small brand sigh if the app is missing.", effects: [{ type: "tech" }] },
+  ] },
 ];
 
 function eventWeight(event) {
   if (state.day < (event.minDay || 0)) return 0;
   if (event.condition && !event.condition()) return 0;
-  return event.weight || 1;
+  let weight = event.weight || 1;
+  const ratio = creditLimit() > 0 ? Math.max(0, -state.cash) / creditLimit() : 0;
+  if ((event.id === "war" || event.id === "rival-launch") && ratio > 0.4) weight *= 1.8;
+  if (event.id === "war" && rivals.length) {
+    const avg = rivals.reduce((sum, rival) => sum + rival.price, 0) / rivals.length;
+    if (state.monthlyPrice < avg - (econ().cheapWarGap || 3)) weight *= 2;
+  }
+  return weight;
 }
 
 function maybeEvent() {
@@ -1307,7 +1584,9 @@ function presentEvent(event) {
 function diagnose() {
   const expiring = titles.find((title) => title.kind === "licensed" && title.status === "released" && title.contractDays > 0 && title.contractDays <= 14);
   const view = snapshot();
-  if (state.cash < 0) return { problem: "Cash is below zero.", tip: "Ease off commissions and let a gentler price rebuild the balance." };
+  if (state.cash < 0) return { problem: "The service is in debt.", tip: "Interest is daily. Debt only helps if the purchase earns more than it costs." };
+  if (state.monthlyPrice <= 3) return { problem: "The price is very low.", tip: "Every subscriber costs money to serve. A slightly higher price can be the sweet spot." };
+  if (state.monthlyPrice >= 16) return { problem: "The price is high.", tip: "Growth and brand both cool above $15. Step down gradually." };
   if (expiring) return { problem: `${expiring.name} expires in ${expiring.contractDays} days.`, tip: "Renew it, or commission something in that genre before the quality walks out." };
   if (view.churnRate > 0.01) return { problem: "Churn is high.", tip: "A lower price, more recommendations, or a hit will slow the exits." };
   if (state.brand < 35) return { problem: "The brand is dented.", tip: "A hit, an award, or a week without scandals will lift it." };
@@ -1327,10 +1606,14 @@ function bestTitle() {
 function maybeWeekly() {
   if (state.day === 0 || state.day % 30 !== 0) return;
   const recent = analytics.slice(-30);
-  const profit = recent.reduce((sum, row) => sum + row.revenue - row.costs, 0);
+  const profit = recent.reduce((sum, row) => sum + (row.profit != null ? row.profit : row.revenue - row.costs), 0);
+  const interest = recent.reduce((sum, row) => sum + (row.interest || 0), 0);
   const then = history.length > 30 ? history[history.length - 31] : history[0];
+  const valueThen = recent.length && recent[0].value != null ? recent[0].value : companyValue();
   const report = {
     profit,
+    interest,
+    valueChange: companyValue() - valueThen,
     subChange: paidSubscribers() - then,
     best: bestTitle(),
     ...diagnose(),
@@ -1363,6 +1646,15 @@ const ACHIEVEMENTS = [
   { id: "passport", name: "Passport", hint: "Unlock a second region.", test: () => REGIONS.filter((def) => state.regions[def.id].unlocked).length >= 2 },
   { id: "premium", name: "Premium Bet", hint: "Release a premium original.", test: () => titles.some((title) => title.tier === "premium" && title.status === "released") },
   { id: "full-shelf", name: "Full Shelf", hint: "Have 10 titles on the service.", test: () => titles.filter((title) => title.status === "released").length >= 10 },
+  { id: "critics-darling", name: "Critics' Darling", hint: "Release a critics' darling.", test: () => state.criticsDarling },
+  { id: "star-maker", name: "Star Maker", hint: "Score a hit with a rising star.", test: () => state.risingStarHit },
+  { id: "big-spender", name: "Big Spender", hint: "Make a first purchase on credit.", test: () => state.boughtOnCredit },
+  { id: "debt-free", name: "Debt Free", hint: "Clear $50,000 of debt.", test: () => (state.debtRepaid || 0) >= 50000 },
+  { id: "danger", name: "Living Dangerously", hint: "Touch 90% of the credit limit and climb back.", test: () => state.touchedHighCredit && state.cash >= 0 },
+  { id: "blockbuster", name: "Blockbuster Library", hint: "Own 5 titles rated 8.0 or better.", test: () => titles.filter((title) => title.status === "released" && (title.tmdbVote || 0) >= 8).length >= 5 },
+  { id: "star-studded", name: "Star Studded", hint: "Cast 3 A-list actors.", test: () => (state.aListCast || 0) >= 3 },
+  { id: "local-hero", name: "Local Hero", hint: "Release a hit local original in every unlocked region beyond home.", test: () => REGIONS.filter((def) => def.id !== "uk" && state.regions[def.id].unlocked).every((def) => state.localHits && state.localHits[def.id]) && REGIONS.some((def) => def.id !== "uk" && state.regions[def.id].unlocked) },
+  { id: "sweet-spot", name: "Sweet Spot", hint: "Stay profitable for 90 days between $6 and $12.", test: () => (state.sweetStreak || 0) >= 90 },
 ];
 
 function checkAchievements() {
@@ -1445,19 +1737,55 @@ function tick(options) {
   const previousOffline = simOffline;
   simOffline = offline;
   state.day += 1;
+  if (state.priceHikeDays > 0) state.priceHikeDays -= 1;
   decayEffects();
   advanceProductions();
   advanceContracts();
   const before = snapshot();
   const playerBefore = before.subscribers;
+  const cashBefore = state.cash;
   applyNumbers(before, offline);
+  if (cashBefore < 0 && state.cash > cashBefore) {
+    state.debtRepaid = (state.debtRepaid || 0) + Math.min(-cashBefore, state.cash - cashBefore);
+  }
+  if (before.netCash > 0) {
+    state.profitableStreak = (state.profitableStreak || 0) + 1;
+    if (state.monthlyPrice >= 6 && state.monthlyPrice <= 12) state.sweetStreak = (state.sweetStreak || 0) + 1;
+    else state.sweetStreak = 0;
+  } else {
+    state.profitableStreak = 0;
+    state.sweetStreak = 0;
+  }
+  state.profitHistory = state.profitHistory || [];
+  state.profitHistory.push(before.netCash);
+  if (state.profitHistory.length > 90) state.profitHistory.shift();
+  const debt = Math.max(0, -state.cash);
+  const limit = creditLimit();
+  if (limit > 0 && debt > limit * 0.8) state.highCreditDays = (state.highCreditDays || 0) + 1;
+  else state.highCreditDays = 0;
+  if (limit > 0 && debt > limit * 0.9) state.touchedHighCredit = true;
+  if (!offline && debt > limit * ((CONFIG.credit || {}).warnRatio || 0.8)) {
+    if (!state.creditWarned) {
+      state.creditWarned = true;
+      toast("Credit is nearly used up.");
+    }
+  } else if (debt < limit * 0.7) state.creditWarned = false;
   tickRivals(playerBefore);
   growMarkets();
   if (state.day % 60 === 0) driftTrends();
   driftBrand(before);
   history.push(Math.round(paidSubscribers()));
   if (history.length > MAX_HISTORY) history.shift();
-  analytics.push({ revenue: before.dailyRevenue, costs: before.dailyCosts, churn: before.churnRate });
+  analytics.push({
+    revenue: before.dailyRevenue,
+    costs: before.dailyCosts,
+    churn: before.churnRate,
+    profit: before.netCash,
+    value: before.companyValue,
+    cash: state.cash,
+    debt: Math.max(0, -state.cash),
+    interest: before.interest || 0,
+  });
   if (analytics.length > 90) analytics.shift();
   checkEndings();
   checkMilestones(paidSubscribers());
@@ -1509,7 +1837,7 @@ function logDay(before, after) {
 }
 
 function start() {
-  if (timerId !== null || !state || state.status !== "playing" || state.paused || blocking || welcomeHold || menuDepth > 0) return;
+  if (timerId !== null || !state || state.status !== "playing" || state.paused || blocking || welcomeHold || menuDepth > 0 || guideOpen) return;
   if (!hasUi()) return;
   const ms = Math.max(200, Math.round(TICK_MS / (state.speed || 1)));
   timerId = setInterval(() => tick(), ms);
@@ -1590,6 +1918,15 @@ function setMonthlyPrice(price, options) {
   if (!Number.isFinite(next)) return state.monthlyPrice;
   const previous = state.monthlyPrice;
   state.monthlyPrice = clamp(roundCents(next), MIN_MONTHLY_PRICE, MAX_MONTHLY_PRICE);
+  const quiet = options && options.quiet;
+  if (!quiet) {
+    const anchor = state.priceAnchor == null ? previous : state.priceAnchor;
+    if (state.monthlyPrice - anchor > (econ().hikeThreshold || 2)) {
+      state.priceHikeDays = econ().hikeDays || 14;
+      pushEvent(state.day, [{ text: "A sharp price rise shook the base. Churn spikes for 14 days.", tone: "warn" }], "money");
+    }
+    state.priceAnchor = state.monthlyPrice;
+  }
   if (previous <= 15 && state.monthlyPrice > 15) changeBrand(-1, "Price above $15");
   syncView();
   if (!options || !options.quiet) {
@@ -1642,7 +1979,7 @@ function pushEvent(day, parts, category) {
 
 function serialize() {
   return {
-    version: 2,
+    version: 3,
     state,
     owned,
     titles,
@@ -1689,6 +2026,17 @@ function applyLoaded(data) {
   state.serviceName = typeof state.serviceName === "string" && state.serviceName.trim() ? state.serviceName.trim().slice(0, 24) : SERVICE_NAME;
   state.sandbox = !!state.sandbox || state.difficulty === "sandbox";
   if (!Number.isFinite(state.speed) || state.speed < 1) state.speed = 1;
+  state.profitHistory = Array.isArray(state.profitHistory) ? state.profitHistory : [];
+  state.profitableStreak = state.profitableStreak || 0;
+  state.sweetStreak = state.sweetStreak || 0;
+  state.empireHold = state.empireHold || 0;
+  state.localHits = state.localHits || {};
+  state.creditBonus = state.creditBonus || 0;
+  state.debtRepaid = state.debtRepaid || 0;
+  state.priceAnchor = Number.isFinite(state.priceAnchor) ? state.priceAnchor : state.monthlyPrice;
+  state.adTier = !!state.adTier;
+  state.aListCast = state.aListCast || 0;
+  if (data.version && data.version < 3) state.migratedFrom = data.version;
   owned = { ...emptyOwned(), ...(data.owned || {}) };
   titles = Array.isArray(data.titles) ? data.titles : [];
   rivals = Array.isArray(data.rivals) ? data.rivals : createRivals(difficulty());
@@ -1828,7 +2176,7 @@ function loadGame() {
   }
   if (!data || !data.state || !Number.isFinite(data.state.cash) || !Number.isFinite(data.state.subscribers)) return false;
   if (data.version === 1 || data.state && !data.state.regions) data = migrateV1(data);
-  if (data.version !== 2 && !data.state.regions) return false;
+  if (!data.state.regions) return false;
   applyLoaded(data);
   return true;
 }
@@ -1895,6 +2243,7 @@ function pumpPrompts() {
   else if (prompt.type === "renew") openRenew(prompt.titleId, prompt.cost);
   else if (prompt.type === "weekly") openWeekly(prompt.report);
   else if (prompt.type === "milestone") openMilestone(prompt.milestone);
+  else if (prompt.type === "review") openReview(prompt);
 }
 
 function dismissBlock() {
@@ -1929,6 +2278,11 @@ function openEvent(event) {
     name.textContent = option.label;
     const summary = document.createElement("span");
     summary.textContent = option.summary;
+    const cost = (option.effects || []).reduce((sum, effect) => sum + (effect.type === "cash" && effect.value < 0 ? -effect.value : 0), 0);
+    if (cost && payKind(cost) === "over") {
+      button.disabled = true;
+      summary.textContent = "Over credit limit";
+    } else if (cost && payKind(cost) === "credit") summary.textContent = `${option.summary} Balance after: ${formatCash(state.cash - cost)}.`;
     button.append(name, summary);
     root.append(button);
   });
@@ -1941,8 +2295,9 @@ function openRenew(titleId, cost) {
   setText("renew-title", title ? title.name : "Licence");
   setText("renew-copy", `${title ? title.name : "This licence"} has 10 days left. Renewing costs ${formatCash(cost)}. Letting it go removes its quality.`);
   const yes = document.getElementById("renew-yes");
-  yes.disabled = state.cash < cost;
-  yes.textContent = state.cash < cost ? `Need ${formatCash(cost)}` : `Renew ${formatCash(cost)}`;
+  const kind = payKind(cost);
+  yes.disabled = kind === "over";
+  yes.textContent = kind === "over" ? "Over credit limit" : kind === "credit" ? `Renew on credit ${formatCash(cost)}` : `Renew ${formatCash(cost)}`;
   document.getElementById("renew-modal").hidden = false;
 }
 
@@ -1951,7 +2306,9 @@ function openWeekly(report) {
   root.replaceChildren();
   [
     ["Profit, 30 days", formatCash(report.profit)],
+    ["Interest paid", formatCash(report.interest || 0)],
     ["Subscribers", formatSignedNumber(report.subChange, 0)],
+    ["Company value", formatCash(report.valueChange || 0)],
     ["Best title", report.best],
     ["Biggest problem", report.problem],
     ["Tip", report.tip],
@@ -2096,6 +2453,7 @@ function showTitle() {
   fillStartScores();
   showPanel("title-screen");
   syncPauseOverlay();
+  ensureCatalogue();
 }
 
 function showStart() {
@@ -2121,10 +2479,7 @@ function rememberGuidePreference() {
 }
 
 function ensureCatalogue() {
-  if (!cataloguePromise) {
-    catalogueReady = true;
-    cataloguePromise = Promise.resolve();
-  }
+  if (!cataloguePromise) cataloguePromise = startCatalogue();
   return cataloguePromise;
 }
 
@@ -2226,9 +2581,14 @@ function launchGame() {
     if (!settings.tutorialDismissed) openTutorial(0);
   }
   logIntro();
+  seedTrends();
   saveGame();
   start();
   startAutosave();
+  if (state.migratedFrom) {
+    toast("Your save was updated for the new studio.");
+    state.migratedFrom = null;
+  }
 }
 
 function requestLaunch() {
@@ -2263,6 +2623,10 @@ function continueGame() {
     const missed = Math.max(0, Math.min(300, Math.floor((Date.now() - (state.savedAt || Date.now())) / 1000)));
     resetUi();
     startAutosave();
+    if (state.migratedFrom) {
+      toast("Your save was updated for the new studio.");
+      state.migratedFrom = null;
+    }
     if (missed >= 1) {
       const summary = catchUp(missed);
       showWelcome(summary);
@@ -2293,8 +2657,8 @@ function showEndScreen() {
   if (!win || !lose) return;
   if (state.status === "won" || state.status === "sold") {
     lose.hidden = true;
-    setText("win-heading", state.status === "sold" ? "Bought Out" : "Global Giant");
-    setText("win-line", state.status === "sold" ? "A rival wrote the cheque. The catalogue is theirs now." : "A million subscribers. The world is watching.");
+    setText("win-heading", state.status === "sold" ? "Bought Out" : "Streaming Empire");
+    setText("win-line", state.status === "sold" ? "A rival wrote the cheque. The catalogue is theirs now." : "Company value, subscribers, and a healthy business, held together.");
     fillEndStats("win-stats");
     setText("win-score", `Score ${computeScore().toLocaleString("en-US")}`);
     fillBoard("win-board");
@@ -2334,6 +2698,7 @@ function fillEndStats(id) {
     ["Subscribers", formatSubscribers(view.subscribers), false],
     ["Cash", formatCash(view.cash), view.cash < 0],
     ["Brand", String(Math.round(view.brand)), false],
+    ["Company value", formatCash(view.companyValue || 0), false],
   ];
   root.replaceChildren();
   rows.forEach(([label, value, negative]) => {
@@ -2401,6 +2766,9 @@ function paint(view) {
     fill.classList.toggle("is-high", view.brand >= 70);
   }
   setText("brand-value", String(Math.round(view.brand)));
+  renderCredit(view);
+  renderHero(view);
+  renderEmpire(view);
   renderChips(view);
   renderTrend();
   updateUpgradeCards(view);
@@ -2447,31 +2815,29 @@ function updateUpgradeCards(view) {
     const card = document.querySelector(`[data-upgrade="${upgrade.id}"]`);
     if (!card) return;
     const count = ownedCount(upgrade.id);
-    let cost = upgradeCost(upgrade);
-    let affordable = view.status === "playing" && view.cash >= cost;
-    if (upgrade.action === "commission") {
-      cost = BUDGETS.low.cost;
-      affordable = view.status === "playing" && view.cash >= cost;
-    }
-    if (upgrade.action === "license") {
-      const live = activeLicense(upgrade.id);
-      affordable = view.status === "playing" && !live && view.cash >= cost;
-      card.classList.toggle("is-unaffordable", !affordable);
-    } else {
-      card.classList.toggle("is-unaffordable", !affordable);
-    }
+    let cost = upgrade.action === "commission" ? 0 : upgradeCost(upgrade);
+    const live = upgrade.action === "license" && activeLicense(upgrade.id);
+    const kind = upgrade.action === "commission" || live ? "cash" : payKind(cost);
+    const blocked = view.status !== "playing" || live || kind === "over";
+    card.classList.toggle("is-unaffordable", blocked && upgrade.action !== "commission");
     const costEl = card.querySelector(".upgrade-cost");
-    if (costEl) costEl.textContent = upgrade.action === "commission" ? `From ${formatCash(BUDGETS.low.cost)}` : formatCash(cost);
+    if (costEl) {
+      costEl.textContent = upgrade.action === "commission" ? "Acquire or create" : live ? "On the service" : `${formatCash(cost)} · after ${formatCash(state.cash - cost)}`;
+    }
     const badge = card.querySelector(".owned-badge");
     if (badge) {
-      const liveLicense = upgrade.action === "license" && activeLicense(upgrade.id);
-      badge.hidden = count <= 0 && !liveLicense;
-      badge.textContent = liveLicense ? "Live" : `x${count}`;
+      badge.hidden = count <= 0 && !live;
+      badge.textContent = live ? "Live" : `x${count}`;
     }
     const button = card.querySelector(".buy-button");
     if (button) {
-      button.disabled = !affordable;
-      button.textContent = upgrade.action === "commission" ? "New" : upgrade.action === "license" && activeLicense(upgrade.id) ? "Live" : "Buy";
+      button.disabled = blocked && upgrade.action !== "commission";
+      button.classList.toggle("buy-credit", kind === "credit");
+      if (upgrade.action === "commission") button.textContent = "Open";
+      else if (live) button.textContent = "Live";
+      else if (kind === "over") button.textContent = "Over credit limit";
+      else if (kind === "credit") button.textContent = "Buy on credit";
+      else button.textContent = "Buy";
     }
   });
 }
@@ -2488,16 +2854,20 @@ function renderLibrary() {
     tile.className = "poster";
     tile.dataset.title = title.id;
     tile.style.background = GENRE_GRADIENTS[title.genre] || GENRE_GRADIENTS.Drama;
+    if (title.poster_path) {
+      const img = document.createElement("img");
+      img.alt = "";
+      img.loading = "lazy";
+      img.src = posterUrl(title.poster_path);
+      img.addEventListener("error", () => img.remove());
+      tile.append(img);
+    }
     if (title.status === "producing") tile.classList.add("is-producing");
-    if (title.outcome === "hit") {
+    const tag = title.outcome === "hit" ? "HIT!" : title.outcome === "flop" ? "FLOP" : title.outcome === "darling" ? "DARLING" : title.outcome === "guilty" ? "GUILTY" : "";
+    if (tag) {
       const badge = document.createElement("span");
-      badge.className = "poster-badge hit";
-      badge.textContent = "HIT!";
-      tile.append(badge);
-    } else if (title.outcome === "flop") {
-      const badge = document.createElement("span");
-      badge.className = "poster-badge flop";
-      badge.textContent = "FLOP";
+      badge.className = `poster-badge ${title.outcome === "flop" ? "flop" : "hit"}`;
+      badge.textContent = tag;
       tile.append(badge);
     }
     const name = document.createElement("p");
@@ -2507,7 +2877,7 @@ function renderLibrary() {
     meta.className = "poster-genre";
     if (title.status === "producing") meta.textContent = `${title.genre} · ${Math.max(0, title.daysLeft)}d`;
     else if (title.kind === "licensed") meta.textContent = `${title.genre} · ${Math.max(0, title.contractDays)}d`;
-    else meta.textContent = title.genre;
+    else meta.textContent = title.critic ? `${title.genre} · ${title.critic}/${title.audience}` : title.genre;
     tile.append(name, meta);
     if (title.status === "producing" && title.totalDays) {
       const bar = document.createElement("div");
@@ -2549,16 +2919,20 @@ function renderRegions() {
       button.type = "button";
       button.className = "buy-button";
       button.dataset.localise = def.id;
-      button.textContent = `Localise ${formatCash(def.localise)}`;
-      button.disabled = state.cash < def.localise || state.status !== "playing";
+      const localKind = payKind(def.localise);
+      button.classList.toggle("buy-credit", localKind === "credit");
+      button.textContent = localKind === "over" ? "Over credit limit" : localKind === "credit" ? `Localise on credit ${formatCash(def.localise)}` : `Localise ${formatCash(def.localise)}`;
+      button.disabled = localKind === "over" || state.status !== "playing";
       card.append(button);
     } else if (!region.unlocked) {
       const button = document.createElement("button");
       button.type = "button";
       button.className = "buy-button";
       button.dataset.unlock = def.id;
-      button.textContent = `Unlock ${formatCash(def.unlock)}`;
-      button.disabled = state.cash < def.unlock || state.status !== "playing";
+      const unlockKind = payKind(def.unlock);
+      button.classList.toggle("buy-credit", unlockKind === "credit");
+      button.textContent = unlockKind === "over" ? "Over credit limit" : unlockKind === "credit" ? `Unlock on credit ${formatCash(def.unlock)}` : `Unlock ${formatCash(def.unlock)}`;
+      button.disabled = unlockKind === "over" || state.status !== "playing";
       card.append(button);
     } else {
       const note = document.createElement("p");
@@ -2570,7 +2944,7 @@ function renderRegions() {
 }
 
 function leaderboardRows() {
-  const rows = [{ id: "player", name: SERVICE_NAME, color: "#E50914", subs: paidSubscribers(), player: true, history }];
+    const rows = [{ id: "player", name: displayName(), color: "#E50914", subs: paidSubscribers(), player: true, history }];
   rivals.forEach((rival) => rows.push({ id: rival.id, name: rival.name, color: rival.color, subs: rival.subscribers, player: false, history: rival.history }));
   rows.sort((a, b) => b.subs - a.subs);
   const total = rows.reduce((sum, row) => sum + row.subs, 0) || 1;
@@ -2621,7 +2995,7 @@ function renderTrophies() {
     const title = document.createElement("h3");
     title.textContent = achievement.name;
     const hint = document.createElement("p");
-    hint.textContent = unlocked ? `${achievement.hint} Reward: +1% growth.` : achievement.hint;
+    hint.textContent = unlocked ? `${achievement.hint} Reward: +1% growth.` : `${achievement.hint} Reward: +1% growth.`;
     card.append(mark, title, hint);
     root.append(card);
   });
@@ -2632,8 +3006,10 @@ function contentRows() {
   const total = view.titles.reduce((sum, title) => sum + title.contribution, 0) + 1;
   return view.titles.map((title) => ({
     title: title.name,
+    poster: title.poster_path || "",
     genre: title.genre,
-    status: title.status === "producing" ? "In production" : title.outcome === "hit" ? "HIT" : title.outcome === "flop" ? "Flop" : title.outcome === "licensed" ? "Licensed" : title.status === "expired" ? "Expired" : title.status === "pulled" ? "Pulled" : "Average",
+    scores: title.critic ? `${title.critic}/${title.audience}` : "–",
+    status: title.status === "producing" ? "In production" : title.outcome === "hit" ? "HIT" : title.outcome === "flop" ? "Flop" : title.outcome === "darling" ? "Darling" : title.outcome === "guilty" ? "Guilty pleasure" : title.outcome === "licensed" ? "Licensed" : title.status === "expired" ? "Expired" : title.status === "pulled" ? "Pulled" : "Average",
     cost: title.cost || 0,
     revenue: total > 0 ? view.dailyRevenue * title.contribution / total : 0,
   }));
@@ -2644,6 +3020,10 @@ function renderAnalytics() {
     { color: "#2ECC71", values: analytics.map((row) => row.revenue) },
     { color: "#FF4D4F", values: analytics.map((row) => row.costs) },
   ]);
+  drawLines(document.getElementById("chart-value"), [
+    { color: "#C46BFF", values: analytics.map((row) => row.value || 0) },
+  ]);
+  drawCashChart(document.getElementById("chart-cash"));
   drawLines(document.getElementById("chart-churn"), [
     { color: "#E50914", values: analytics.map((row) => row.churn) },
   ]);
@@ -2654,12 +3034,23 @@ function renderAnalytics() {
   const rows = contentRows().sort((a, b) => {
     const dir = tableSort.dir;
     if (tableSort.key === "cost" || tableSort.key === "revenue") return (a[tableSort.key] - b[tableSort.key]) * dir;
-    return String(a[tableSort.key]).localeCompare(String(b[tableSort.key])) * dir;
+    return String(a[tableSort.key] || "").localeCompare(String(b[tableSort.key] || "")) * dir;
   });
   body.replaceChildren();
   rows.forEach((row) => {
     const tr = document.createElement("tr");
-    [row.title, row.genre, row.status, formatCash(row.cost), formatSignedMoney(row.revenue).replace("+", "")].forEach((value) => {
+    const thumb = document.createElement("td");
+    if (row.poster) {
+      const img = document.createElement("img");
+      img.className = "table-poster";
+      img.alt = "";
+      img.loading = "lazy";
+      img.src = posterUrl(row.poster);
+      img.addEventListener("error", () => img.remove());
+      thumb.append(img);
+    }
+    tr.append(thumb);
+    [row.title, row.genre, row.scores, formatCash(row.cost), formatSignedMoney(row.revenue).replace("+", "")].forEach((value) => {
       const cell = document.createElement("td");
       cell.textContent = value;
       tr.append(cell);
@@ -2706,16 +3097,11 @@ function drawSweetSpot(canvas) {
 }
 
 function estimateProfit(price) {
-  const paid = paidSubscribers();
-  const quality = currentQuality();
-  const marketing = currentMarketing();
-  const attractiveness = priceAttractiveness(price);
-  const churn = churnRate(price, quality, ownedCount("recommendations"), serverLevel());
-  const organic = baseGrowth(paid) * quality * marketing * attractiveness;
-  const expected = Math.max(0, paid + organic - paid * churn);
-  const revenue = expected * (price / 30) + (state.freeUsers || 0) * FREE_USER_AD_REVENUE;
-  const costs = dailyCosts(expected, currentUpkeep());
-  return revenue - costs;
+  const projected = forecast(price);
+  const horizon = econ().subscriberHorizonValue || 36;
+  const growth = projected.netPaid * horizon;
+  if (projected.netCash < 0) return projected.netCash * 30 + Math.min(0, growth);
+  return projected.netCash + growth;
 }
 
 function prepareCanvas(canvas) {
@@ -2848,6 +3234,8 @@ function openDetail(id) {
     ["Freshness", `${Math.round(freshnessOf(title) * 100)}%`],
     ["Daily upkeep", formatCash(title.status === "released" ? title.upkeep : title.plannedUpkeep || 0)],
   ];
+  if (title.critic) rows.push(["Scores", `Critics ${title.critic} · Audience ${title.audience}`]);
+  if (title.cast && title.cast.length) rows.push(["Cast", title.cast.map((actor) => actor.name).join(", ")]);
   if (title.kind === "licensed") rows.push(["Contract", `${Math.max(0, title.contractDays)} days left`]);
   if (title.status === "producing") rows.push(["Days left", String(Math.max(0, title.daysLeft))]);
   rows.forEach(([label, value]) => {
@@ -2860,6 +3248,21 @@ function openDetail(id) {
     list.append(wrap);
   });
   root.append(list);
+  if (title.kind === "original" && title.series && title.status === "released" && title.outcome !== "flop") {
+    const cost = seasonCost(title);
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = payKind(cost) === "credit" ? "buy-button buy-credit" : "buy-button";
+    button.disabled = payKind(cost) === "over";
+    button.textContent = payKind(cost) === "over" ? "Over credit limit" : `New season ${formatCash(cost)}`;
+    button.addEventListener("click", () => {
+      if (renewSeason(title.id)) {
+        document.getElementById("detail-modal").hidden = true;
+        releaseClock();
+      }
+    });
+    root.append(button);
+  }
   document.getElementById("detail-modal").hidden = false;
 }
 
@@ -2880,6 +3283,8 @@ function openRival(id) {
 }
 
 function openCommission() {
+  openStudio();
+  return;
   if (!hasUi() || state.status !== "playing") return;
   holdClock();
   const genres = document.getElementById("genre-picks");
@@ -3190,7 +3595,7 @@ function importSaveText(text) {
   if (!data || !data.state) return false;
   if (data.version === 1 || !data.state.regions) data = migrateV1(data);
   data.savedAt = Date.now();
-  data.version = 2;
+  data.version = 3;
   try {
     localStorage.setItem(SAVE_KEY, JSON.stringify(data));
   } catch (err) {
@@ -3235,7 +3640,10 @@ function bindUi() {
     reader.readAsText(file);
   });
   document.getElementById("price-slider").addEventListener("input", (event) => setMonthlyPrice(event.target.value, { quiet: true }));
-  document.getElementById("price-slider").addEventListener("change", saveGame);
+  document.getElementById("price-slider").addEventListener("change", (event) => {
+    setMonthlyPrice(event.target.value);
+    saveGame();
+  });
   document.querySelector(".tabs").addEventListener("click", (event) => {
     const tab = event.target.closest(".tab");
     if (tab) showTab(tab.dataset.tab);
@@ -3323,8 +3731,13 @@ function bindUi() {
     draft.difficulty = selected ? selected.dataset.difficulty : draft.difficulty;
     draft.sandbox = !!document.getElementById("sandbox-toggle").checked;
     draft.name = document.getElementById("service-name").value || "";
-    if (settings.skipGuide) launchGame();
-    else openGuide("new");
+    if (settings.skipGuide && catalogueReady) launchGame();
+    else if (settings.skipGuide) {
+      openGuide("new");
+      guidePage = guidePages().length - 1;
+      renderGuide();
+      requestLaunch();
+    } else openGuide("new");
   });
   document.getElementById("guide-back").addEventListener("click", () => stepGuide(-1));
   document.getElementById("guide-next").addEventListener("click", () => stepGuide(1));
@@ -3381,6 +3794,7 @@ function bindUi() {
     if (blocking || menuDepth > 0 || welcomeHold || guideOpen) return;
     setSpeed(0);
   });
+  hookStudioUi();
 }
 
 function mountUi() {
@@ -3389,6 +3803,1275 @@ function mountUi() {
   renderUpgradeList();
   saveSettings();
   resetUi();
+}
+
+let catalogue = {
+  ready: false,
+  offline: false,
+  images: { secure_base_url: "https://image.tmdb.org/t/p/" },
+  titles: [],
+  actors: [],
+  shelves: {},
+  hot: {},
+  errors: [],
+  map: {},
+};
+let studio = null;
+
+function posterUrl(path) {
+  if (!path) return "";
+  if (String(path).indexOf("http") === 0) return path;
+  const base = (catalogue.images && catalogue.images.secure_base_url) || "https://image.tmdb.org/t/p/";
+  return `${base}${((CONFIG.tmdb || {}).posterSize) || "w342"}${path}`;
+}
+
+function profileUrl(path) {
+  if (!path) return "";
+  if (String(path).indexOf("http") === 0) return path;
+  const base = (catalogue.images && catalogue.images.secure_base_url) || "https://image.tmdb.org/t/p/";
+  return `${base}${((CONFIG.tmdb || {}).profileSize) || "w185"}${path}`;
+}
+
+function genreFromIds(ids, shelf) {
+  const list = ids || [];
+  if (list.indexOf(10764) >= 0) return "Reality";
+  if (list.indexOf(99) >= 0) return "Documentary";
+  if (list.indexOf(10762) >= 0 || list.indexOf(16) >= 0 || list.indexOf(10751) >= 0) return "Kids";
+  if (list.indexOf(35) >= 0) return "Comedy";
+  if (list.indexOf(18) >= 0) return "Drama";
+  if (shelf === "sport") return "Sport";
+  return "Drama";
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function tmdbGet(path, params) {
+  const settings = CONFIG.tmdb || {};
+  let wait = 500;
+  let last = "request failed";
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const url = new URL(settings.base + path);
+    url.searchParams.set("language", "en-US");
+    Object.keys(params || {}).forEach((key) => {
+      if (params[key] != null && params[key] !== "") url.searchParams.set(key, String(params[key]));
+    });
+    const response = await fetch(url, { headers: { Authorization: `Bearer ${settings.token}`, accept: "application/json" } });
+    if (response.status === 429 || response.status >= 500) {
+      last = `${response.status} ${path}`;
+      catalogue.errors.push(last);
+      await sleep(wait);
+      wait *= 2;
+      continue;
+    }
+    if (!response.ok) {
+      last = `${response.status} ${path}`;
+      catalogue.errors.push(last);
+      throw new Error(last);
+    }
+    return response.json();
+  }
+  throw new Error(last);
+}
+
+function trimTitle(item, mediaType, shelf) {
+  const type = item.media_type && item.media_type !== "person" ? item.media_type : mediaType;
+  const row = {
+    id: item.id,
+    mediaType: type === "tv" || type === "movie" ? type : "movie",
+    title: item.title || item.name || "Untitled",
+    poster_path: item.poster_path || null,
+    backdrop_path: item.backdrop_path || null,
+    overview: String(item.overview || "").slice(0, 240),
+    genre_ids: item.genre_ids || [],
+    vote_average: item.vote_average || 0,
+    vote_count: item.vote_count || 0,
+    popularity: item.popularity || 0,
+    release_date: item.release_date || item.first_air_date || "",
+    origin_country: item.origin_country || [],
+  };
+  row.genre = genreFromIds(row.genre_ids, shelf);
+  row.key = `${row.mediaType}-${row.id}`;
+  return row;
+}
+
+function trimActor(item) {
+  return {
+    id: item.id,
+    name: item.name,
+    profile_path: item.profile_path || null,
+    popularity: item.popularity || 0,
+    birthday: item.birthday || "",
+    credits: (item.known_for || item.credits || []).slice(0, 8).map((credit) => ({
+      id: credit.id,
+      title: credit.title || credit.name || "",
+      genre_ids: credit.genre_ids || [],
+      vote_average: credit.vote_average || 0,
+      vote_count: credit.vote_count || 0,
+    })),
+  };
+}
+
+function starScale(values, value) {
+  const sorted = values.slice().sort((a, b) => a - b);
+  if (!sorted.length) return 3;
+  let rank = 0;
+  sorted.forEach((item) => { if (item <= value) rank += 1; });
+  const pct = rank / sorted.length;
+  return clamp(Math.round(pct * 4) + 1, 1, 5);
+}
+
+function scoreActors(actors) {
+  const pops = actors.map((actor) => actor.popularity || 0);
+  const fans = actors.map((actor) => (actor.popularity || 0) + Math.log10(1 + (actor.credits || []).reduce((sum, credit) => sum + (credit.vote_count || 0), 0)) * 10);
+  actors.forEach((actor, index) => {
+    const credits = actor.credits || [];
+    const avg = credits.length ? credits.reduce((sum, credit) => sum + (credit.vote_average || 0), 0) / credits.length : 6.2;
+    actor.star = starScale(pops, actor.popularity || 0);
+    actor.fan = starScale(fans, fans[index]);
+    actor.critic = clamp(Math.round((avg - 5) * 1.4), 1, 5);
+    const reality = credits.filter((credit) => (credit.genre_ids || []).indexOf(10764) >= 0).length;
+    actor.realityHeavy = credits.length > 0 && reality / credits.length >= 0.4;
+    actor.fee = ((CONFIG.cast || {}).feeBase || 900) + (actor.star - 1) * ((CONFIG.cast || {}).feeStep || 1400);
+    actor.archetype = actorArchetype(actor);
+  });
+}
+
+function actorArchetype(actor) {
+  const age = actorAge(actor);
+  if (actor.star >= 5 && actor.fan >= 4) return "A-list Superstar";
+  if (actor.critic >= 4 && age >= 48) return "Respected Veteran";
+  if (actor.star <= 3 && actor.critic >= 4) return "Rising Star";
+  if (actor.realityHeavy && actor.fan >= 4 && actor.critic <= 2) return "Reality TV Favourite";
+  if (actor.star <= 2) return "Unknown Local";
+  return "Working Actor";
+}
+
+function actorAge(actor) {
+  if (!actor.birthday) return 36;
+  const born = new Date(actor.birthday);
+  if (Number.isNaN(born.getTime())) return 36;
+  return (Date.now() - born.getTime()) / 31557600000;
+}
+
+function genreFit(actor, genre) {
+  const credits = actor.credits || [];
+  if (!credits.length || genre === "Sport") return "OK";
+  const hits = credits.filter((credit) => {
+    const ids = credit.genre_ids || [];
+    if (genre === "Comedy") return ids.indexOf(35) >= 0;
+    if (genre === "Drama") return ids.indexOf(18) >= 0;
+    if (genre === "Documentary") return ids.indexOf(99) >= 0;
+    if (genre === "Kids") return ids.indexOf(16) >= 0 || ids.indexOf(10751) >= 0 || ids.indexOf(10762) >= 0;
+    if (genre === "Reality") return ids.indexOf(10764) >= 0;
+    return false;
+  }).length;
+  const ratio = hits / credits.length;
+  if (ratio >= 0.34) return "Great";
+  if (ratio >= 0.12) return "OK";
+  return "Poor";
+}
+
+function ingestCatalogue(payload, offline) {
+  catalogue.offline = !!offline;
+  catalogue.images = (payload && payload.images) || catalogue.images;
+  catalogue.errors = catalogue.errors || [];
+  catalogue.map = {};
+  catalogue.shelves = {};
+  const rows = [];
+  (payload.titles || []).forEach((item) => {
+    const row = item.key ? item : trimTitle(item, item.mediaType || "movie");
+    if (!row.key) row.key = `${row.mediaType}-${row.id}`;
+    if (!row.genre) row.genre = genreFromIds(row.genre_ids);
+    if (!catalogue.map[row.key]) {
+      catalogue.map[row.key] = row;
+      rows.push(row);
+    }
+  });
+  const pops = rows.map((row) => row.popularity || 0).sort((a, b) => a - b);
+  rows.forEach((row) => {
+    let rank = 0;
+    pops.forEach((value) => { if (value <= (row.popularity || 0)) rank += 1; });
+    row.percentile = pops.length ? rank / pops.length : 0.5;
+  });
+  catalogue.titles = rows;
+  Object.keys(payload.shelves || {}).forEach((shelf) => {
+    catalogue.shelves[shelf] = payload.shelves[shelf];
+  });
+  catalogue.actors = (payload.actors || []).map((actor) => trimActor(actor));
+  scoreActors(catalogue.actors);
+  catalogue.hot = {};
+  (payload.hotActors || []).forEach((id) => { catalogue.hot[id] = true; });
+  catalogue.ready = true;
+}
+
+function readTmdbCache() {
+  if (typeof localStorage === "undefined") return null;
+  try {
+    const saved = JSON.parse(localStorage.getItem((CONFIG.tmdb || {}).cacheKey || "streamco_tmdb_cache_v1") || "null");
+    if (!saved || !saved.savedAt || !saved.payload) return null;
+    const maxAge = ((CONFIG.tmdb || {}).cacheDays || 7) * 86400000;
+    if (Date.now() - saved.savedAt > maxAge) return null;
+    return saved.payload;
+  } catch (err) {
+    return null;
+  }
+}
+
+function writeTmdbCache(payload) {
+  if (typeof localStorage === "undefined") return;
+  try {
+    localStorage.setItem((CONFIG.tmdb || {}).cacheKey || "streamco_tmdb_cache_v1", JSON.stringify({ savedAt: Date.now(), payload }));
+  } catch (err) {
+    catalogue.errors.push("cache full");
+  }
+}
+
+async function loadFallback() {
+  if (typeof window === "undefined") return require("./data/fallback.json");
+  const response = await fetch("./data/fallback.json");
+  if (!response.ok) throw new Error("fallback json");
+  return response.json();
+}
+
+async function runPool(jobs, worker) {
+  const limit = (CONFIG.tmdb || {}).batch || 6;
+  const results = [];
+  for (let index = 0; index < jobs.length; index += limit) {
+    const slice = jobs.slice(index, index + limit);
+    const pages = await Promise.all(slice.map((job) => worker(job).catch((err) => {
+      catalogue.errors.push(String(err.message || err));
+      return null;
+    })));
+    results.push(...pages);
+  }
+  return results;
+}
+
+async function fetchLiveCatalogue() {
+  const settings = CONFIG.tmdb;
+  const config = await tmdbGet("/configuration");
+  const images = {
+    secure_base_url: config.images.secure_base_url,
+    poster_sizes: config.images.poster_sizes,
+    profile_sizes: config.images.profile_sizes,
+  };
+  const shelves = {};
+  const map = {};
+  function add(list, shelf, media) {
+    (list || []).forEach((item) => {
+      if (!item || item.adult) return;
+      const row = trimTitle(item, media || item.media_type || "movie", shelf.indexOf("sport") === 0 ? "sport" : shelf);
+      if (!map[row.key]) map[row.key] = row;
+      if (!shelves[shelf]) shelves[shelf] = [];
+      if (shelves[shelf].indexOf(row.key) < 0) shelves[shelf].push(row.key);
+    });
+  }
+  const pages = settings.pages || 2;
+  const jobs = [];
+  for (let page = 1; page <= pages; page += 1) {
+    jobs.push(["/discover/tv", { sort_by: "popularity.desc", "vote_count.gte": 500, with_genres: 35, page, include_adult: false }, "comedy", "tv"]);
+    jobs.push(["/discover/movie", { sort_by: "popularity.desc", "vote_count.gte": 500, with_genres: 35, page, include_adult: false }, "comedy", "movie"]);
+    jobs.push(["/discover/tv", { sort_by: "popularity.desc", "vote_count.gte": 500, with_genres: 18, page, include_adult: false }, "drama", "tv"]);
+    jobs.push(["/discover/movie", { sort_by: "popularity.desc", "vote_count.gte": 500, with_genres: 18, page, include_adult: false }, "drama", "movie"]);
+    jobs.push(["/discover/tv", { sort_by: "popularity.desc", "vote_count.gte": 100, with_genres: 99, page, include_adult: false }, "documentary", "tv"]);
+    jobs.push(["/discover/movie", { sort_by: "popularity.desc", "vote_count.gte": 100, with_genres: 99, page, include_adult: false }, "documentary", "movie"]);
+    jobs.push(["/discover/tv", { sort_by: "popularity.desc", "vote_count.gte": 100, with_genres: 10762, page, include_adult: false }, "kids", "tv"]);
+    jobs.push(["/discover/movie", { sort_by: "popularity.desc", "vote_count.gte": 100, with_genres: "16|10751", page, include_adult: false }, "kids", "movie"]);
+    jobs.push(["/discover/tv", { sort_by: "popularity.desc", "vote_count.gte": 100, with_genres: 10764, page, include_adult: false }, "reality", "tv"]);
+  }
+  jobs.push(["/trending/tv/week", { include_adult: false }, "trending", "tv"]);
+  jobs.push(["/trending/movie/week", { include_adult: false }, "trending", "movie"]);
+  jobs.push(["/tv/top_rated", { include_adult: false }, "critics", "tv"]);
+  jobs.push(["/movie/top_rated", { include_adult: false }, "critics", "movie"]);
+  jobs.push(["/tv/popular", { include_adult: false }, "crowd", "tv"]);
+  jobs.push(["/movie/popular", { include_adult: false }, "crowd", "movie"]);
+  const keyword = await tmdbGet("/search/keyword", { query: "sport" });
+  const sport = ((keyword && keyword.results) || []).filter((row) => /sport/i.test(row.name))[0] || ((keyword && keyword.results) || [])[0];
+  if (sport) {
+    jobs.push(["/discover/tv", { sort_by: "popularity.desc", "vote_count.gte": 100, with_keywords: sport.id, page: 1, include_adult: false }, "sport", "tv"]);
+    jobs.push(["/discover/movie", { sort_by: "popularity.desc", "vote_count.gte": 100, with_keywords: sport.id, page: 1, include_adult: false }, "sport", "movie"]);
+  }
+  Object.keys(settings.regions || {}).forEach((regionId) => {
+    (settings.regions[regionId] || []).forEach((code) => {
+      jobs.push(["/discover/tv", { sort_by: "popularity.desc", "vote_count.gte": 200, with_origin_country: code, page: 1, include_adult: false }, `local-${code}`, "tv"]);
+    });
+  });
+  await runPool(jobs, async (job) => {
+    const page = await tmdbGet(job[0], job[1]);
+    add(page.results, job[2], job[3]);
+    return page;
+  });
+  const actors = [];
+  const seen = {};
+  for (let page = 1; page <= (settings.peoplePages || 3); page += 1) {
+    const people = await tmdbGet("/person/popular", { page });
+    (people.results || []).forEach((person) => {
+      if (person.known_for_department !== "Acting" || seen[person.id]) return;
+      seen[person.id] = true;
+      actors.push(trimActor(person));
+    });
+  }
+  let hotActors = [];
+  try {
+    const hot = await tmdbGet("/trending/person/week", {});
+    hotActors = (hot.results || []).filter((person) => person.known_for_department === "Acting").map((person) => person.id);
+  } catch (err) {
+    catalogue.errors.push("trending people");
+  }
+  return { images, shelves, titles: Object.keys(map).map((key) => map[key]), actors: actors.slice(0, 100), hotActors };
+}
+
+async function startCatalogue() {
+  catalogueReady = false;
+  catalogue.errors = [];
+  const cached = readTmdbCache();
+  if (cached && cached.titles && cached.titles.length) ingestCatalogue(cached, false);
+  else {
+    try {
+      const live = await fetchLiveCatalogue();
+      if (!live.titles || live.titles.length < 8) throw new Error("thin catalogue");
+      ingestCatalogue(live, false);
+      writeTmdbCache({
+        images: live.images,
+        shelves: live.shelves,
+        titles: live.titles,
+        actors: live.actors,
+        hotActors: live.hotActors,
+      });
+    } catch (err) {
+      catalogue.errors.push(String(err.message || err));
+      try {
+        ingestCatalogue(await loadFallback(), true);
+      } catch (fallbackError) {
+        catalogue.errors.push("Offline catalogue failed");
+      }
+    }
+  }
+  catalogueReady = true;
+  catalogue.ready = true;
+  if (state && state.status === "playing") seedTrends();
+  if (hasUi()) {
+    renderCatalogueDebug();
+    const note = document.getElementById("offline-note");
+    if (note) note.hidden = !catalogue.offline;
+    if (guideOpen && guideMode === "new") renderGuide();
+  }
+}
+
+function seedTrends() {
+  if (!state || state.trendsSeeded || !catalogue.ready) return;
+  const counts = {};
+  GENRES.forEach((genre) => { counts[genre] = 0; });
+  (catalogue.shelves.trending || []).forEach((key) => {
+    const row = catalogue.map[key];
+    if (row) counts[row.genre] = (counts[row.genre] || 0) + 1;
+  });
+  const max = Math.max(1, ...GENRES.map((genre) => counts[genre] || 0));
+  GENRES.forEach((genre) => {
+    state.genreTrends[genre] = clamp(0.85 + ((counts[genre] || 0) / max) * 0.5, 0.8, 1.35);
+  });
+  state.trendsSeeded = true;
+}
+
+function titleAsk(row) {
+  const rules = CONFIG.tmdb || {};
+  const votes = row.vote_count || 0;
+  const avg = row.vote_average || rules.voteFloor || 6.5;
+  const floor = rules.voteFloor || 6.5;
+  const pull = votes < (rules.votePullCount || 200) ? avg * (votes / (rules.votePullCount || 200)) + floor * (1 - votes / (rules.votePullCount || 200)) : avg;
+  const quality = pull * (rules.qualityScale || 0.55);
+  const format = row.mediaType === "movie" ? (rules.filmCost || 1.3) : (rules.seriesCost || 1);
+  const cost = Math.round(((rules.costBase || 1200) + (row.percentile || 0.5) * (rules.costPop || 18000)) * (0.75 + avg * (rules.costVote || 0.08)) * format);
+  const upkeep = Math.max(12, Math.round(cost * (rules.upkeepRate || 0.0045)));
+  return { quality, cost, upkeep, pulled: pull };
+}
+
+function ownedTmdb(row) {
+  return titles.some((title) => title.tmdbId === row.id && title.mediaType === row.mediaType && title.status !== "expired" && title.status !== "pulled");
+}
+
+function shelfKeys(name) {
+  const keys = (catalogue.shelves && catalogue.shelves[name]) || [];
+  const epoch = Math.floor((state ? state.day : 0) / (CONFIG.offerDays || 30));
+  const shift = keys.length ? epoch % keys.length : 0;
+  return keys.slice(shift).concat(keys.slice(0, shift));
+}
+
+async function enrichTitle(row) {
+  if (!row || row.detailed || catalogue.offline) return row;
+  try {
+    const extra = row.mediaType === "tv" ? "aggregate_credits" : "credits";
+    const path = row.mediaType === "tv" ? `/tv/${row.id}` : `/movie/${row.id}`;
+    const data = await tmdbGet(path, { append_to_response: extra });
+    row.tagline = data.tagline || "";
+    row.overview = String(data.overview || row.overview || "").slice(0, 280);
+    row.runtime = data.runtime || (data.episode_run_time && data.episode_run_time[0]) || 0;
+    row.seasons = data.number_of_seasons || 0;
+    row.episodes = data.number_of_episodes || 0;
+    const rawCast = (data.credits && data.credits.cast) || (data.aggregate_credits && data.aggregate_credits.cast) || [];
+    row.billed = rawCast.slice(0, 5).map((person) => ({ id: person.id, name: person.name || person.original_name, profile_path: person.profile_path || null }));
+    row.detailed = true;
+  } catch (err) {
+    catalogue.errors.push(`details ${row.id}`);
+  }
+  return row;
+}
+
+function acquireTitle(row) {
+  if (!row || ownedTmdb(row) || state.status !== "playing") return false;
+  const ask = titleAsk(row);
+  if (!trySpend(ask.cost)) return false;
+  clearOverrides();
+  const jitter = (CONFIG.tmdb || {}).criticJitter || 4;
+  const critic = clamp(Math.round(row.vote_average * 10 + (random() - 0.5) * jitter * 2), 5, 99);
+  const audience = clamp(Math.round(((row.percentile || 0.5) * 45 + row.vote_average * 5) + (random() - 0.5) * ((CONFIG.tmdb || {}).audienceJitter || 5) * 2), 5, 99);
+  const billed = row.billed || [];
+  const castBonus = billed.length ? Math.min(1.2, billed.length * ((CONFIG.tmdb || {}).acquiredCast || 0.35) * 0.15) : 0;
+  const days = row.mediaType === "movie" ? (CONFIG.contractDays || {}).movie || 180 : (CONFIG.contractDays || {}).tv || 90;
+  const title = makeTitle({
+    name: row.title,
+    genre: row.genre || "Drama",
+    kind: "licensed",
+    tier: "license",
+    status: "released",
+    quality: ask.quality + castBonus,
+    upkeep: ask.upkeep,
+    cost: ask.cost,
+    outcome: "licensed",
+    releaseDay: state.day,
+    contractDays: days,
+    contractLength: days,
+    tmdbId: row.id,
+    mediaType: row.mediaType,
+    poster_path: row.poster_path,
+    overview: row.overview,
+    critic,
+    audience,
+    tmdbVote: row.vote_average,
+    cast: billed.map((person) => ({ id: person.id, name: person.name, profile_path: person.profile_path })),
+    series: row.mediaType === "tv",
+  });
+  const line = reviewHeadline(title);
+  pushEvent(state.day, [{ text: `${row.title} is now streaming. ${line}`, tone: "up" }], "money");
+  if (hasUi() && !simOffline) enqueuePrompt({ type: "review", line });
+  checkAchievements();
+  saveGame();
+  syncView();
+  return title;
+}
+
+function reviewHeadline(title) {
+  const outlets = ["The Daily Screen", "Reel Talk", "Couch Times", "Midnight Listings"];
+  const quotes = {
+    hit: "A triumph!",
+    flop: "A very long evening.",
+    darling: "The critics are already arguing.",
+    guilty: "You will press play anyway.",
+    licensed: "Now streaming.",
+    average: "Perfectly watchable.",
+  };
+  const quote = quotes[title.outcome] || quotes.average;
+  const critic = title.critic != null ? title.critic : "–";
+  const audience = title.audience != null ? title.audience : "–";
+  return `${outlets[rollInt(outlets.length)]}: "${quote}" Critics ${critic}% | Audience ${audience}%`;
+}
+
+function scoreRelease(title, budget) {
+  const cast = title.cast || [];
+  const lead = cast[0] || { critic: 3, fan: 3, star: 3 };
+  const support = cast[1] || { critic: 3, fan: 3, star: 2 };
+  const director = (CONFIG.directors || {})[title.director] || { variance: 1, critic: 0 };
+  const format = (CONFIG.formats || {})[title.format] || { quality: 1 };
+  const trend = (state.genreTrends && state.genreTrends[title.genre]) || 1;
+  const spread = director.variance || 1;
+  const critic = clamp(Math.round(58 + ((lead.critic || 3) + (support.critic || 3) - 6) * ((CONFIG.cast || {}).reviewCritic || 8) + (director.critic || 0) + budget.quality * 3 + (random() - 0.5) * 18 * spread), 8, 99);
+  const audience = clamp(Math.round(54 + ((lead.fan || 3) + (support.fan || 3) - 6) * ((CONFIG.cast || {}).reviewFan || 7) + (trend - 1) * 28 + (title.marketingSpend ? 8 : 0) + (random() - 0.5) * 16 * spread), 8, 99);
+  let tag = "average";
+  if (critic >= 75 && audience >= 75) tag = "hit";
+  else if (critic <= 46 && audience <= 46) tag = "flop";
+  else if (critic >= 75 && audience < 62) tag = "darling";
+  else if (audience >= 75 && critic < 62) tag = "guilty";
+  const quality = Math.max(0.35, budget.quality * (format.quality || 1) * (0.55 + critic / 140 + audience / 180));
+  const star = ((lead.star || 3) + (lead.fan || 3) + (support.star || 2)) / 10;
+  const spikeBase = Math.max(12, paidSubscribers() * 0.01 * star * (audience / 70));
+  const spike = spikeBase * (tag === "flop" ? 0.15 : tag === "hit" || tag === "guilty" ? 1.7 : tag === "darling" ? 0.7 : 1);
+  return { tag, critic, audience, quality, spike };
+}
+
+function openReview(prompt) {
+  setText("milestone-title", "Review day");
+  setText("milestone-line", prompt.line);
+  const modal = document.getElementById("milestone-modal");
+  if (modal) modal.hidden = false;
+}
+
+function seasonCost(title) {
+  const fees = (title.cast || []).reduce((sum, actor) => sum + Math.round((actor.fee || 1200) * 1.15), 0);
+  return Math.round((title.cost || 4000) * 0.55 * (CONFIG.renewRise || 1.2) + fees);
+}
+
+function renewSeason(id) {
+  const title = titles.find((item) => item.id === id);
+  if (!title) return false;
+  const cost = seasonCost(title);
+  if (!trySpend(cost)) return false;
+  title.season = (title.season || 1) + 1;
+  title.releaseDay = state.day;
+  title.quality = (title.quality || 1) * 1.08;
+  title.upkeep = Math.round((title.upkeep || 20) * 1.12);
+  (title.cast || []).forEach((actor) => { actor.fee = Math.round((actor.fee || 1200) * 1.15); });
+  pushEvent(state.day, [{ text: `${title.name} returns for season ${title.season}.`, tone: "up" }], "money");
+  saveGame();
+  syncView();
+  return true;
+}
+
+function productionPlan() {
+  const budget = BUDGETS[studio.budget] || BUDGETS.standard;
+  const format = (CONFIG.formats || {})[studio.format] || { cost: 1, days: 1, upkeep: 1, quality: 1, series: true };
+  const director = (CONFIG.directors || {})[studio.director] || { time: 1 };
+  const marketing = (CONFIG.marketingSpend || {})[studio.marketing] || 0;
+  const fees = [studio.lead, studio.support].reduce((sum, actor) => sum + (actor ? actor.fee || 0 : 0), 0);
+  const cost = Math.round(budget.cost * format.cost + fees + marketing);
+  const days = Math.max(3, Math.round(budget.days * format.days * (director.time || 1)));
+  return { budget, format, cost, days, marketing, fees };
+}
+
+function startOriginal() {
+  const plan = productionPlan();
+  if (!trySpend(plan.cost)) return false;
+  clearOverrides();
+  const cast = [studio.lead, studio.support].filter(Boolean).map((actor) => ({
+    id: actor.id,
+    name: actor.name,
+    profile_path: actor.profile_path,
+    star: actor.star,
+    fan: actor.fan,
+    critic: actor.critic,
+    fee: actor.fee,
+    archetype: actor.archetype,
+  }));
+  cast.forEach((actor) => {
+    if (actor.archetype === "A-list Superstar") state.aListCast = (state.aListCast || 0) + 1;
+  });
+  const title = makeTitle({
+    name: (studio.name || "Untitled").trim().slice(0, 42) || "Untitled",
+    genre: studio.genre,
+    kind: "original",
+    tier: plan.budget.id,
+    status: "producing",
+    daysLeft: plan.days,
+    totalDays: plan.days,
+    plannedQuality: plan.budget.quality * (plan.format.quality || 1),
+    plannedUpkeep: Math.round(plan.budget.upkeep * (plan.format.upkeep || 1)),
+    cost: plan.cost,
+    cast,
+    director: studio.director,
+    format: studio.format,
+    series: plan.format.series !== false,
+    marketingSpend: plan.marketing,
+    localRegion: studio.localRegion && studio.localRegion !== "uk" ? studio.localRegion : "",
+  });
+  pushEvent(state.day, [{ text: `${title.name} enters production (${plan.days} days).`, tone: "neutral" }], "money");
+  saveGame();
+  syncView();
+  closeCommission();
+  return true;
+}
+
+function surpriseTitle() {
+  const bits = ["Midnight", "Second", "Paper", "Golden", "Quiet", "Last", "Open", "Little", "North", "Velvet"];
+  const ends = ["Carriage", "Checkout", "Screen", "Table", "Season", "Signal", "Room", "Replay", "Harbour", "Cut"];
+  return `${bits[rollInt(bits.length)]} ${ends[rollInt(ends.length)]}`;
+}
+
+function openStudio() {
+  if (!hasUi()) return;
+  if (state.status !== "playing") return;
+  holdClock();
+  studio = {
+    step: "path",
+    shelf: "trending",
+    query: "",
+    role: "lead",
+    format: "sitcom",
+    genre: "Comedy",
+    name: "",
+    director: "safe",
+    budget: "standard",
+    marketing: "off",
+    lead: null,
+    support: null,
+    localRegion: "uk",
+    refresh: 0,
+    selected: null,
+  };
+  const modal = document.getElementById("commission-modal");
+  if (modal) modal.hidden = false;
+  renderStudio();
+}
+
+function studioRoot() {
+  const card = document.querySelector("#commission-modal .modal-card");
+  if (!card) return null;
+  let root = document.getElementById("studio-root");
+  if (!root) {
+    root = document.createElement("div");
+    root.id = "studio-root";
+    card.prepend(root);
+  }
+  Array.from(card.children).forEach((child) => { child.hidden = child !== root; });
+  root.hidden = false;
+  return root;
+}
+
+function renderStudio() {
+  const root = studioRoot();
+  if (!root || !studio) return;
+  root.replaceChildren();
+  const heading = document.createElement("h2");
+  heading.id = "studio-heading";
+  const body = document.createElement("div");
+  root.append(heading, body);
+  if (studio.step === "path") renderStudioPath(heading, body);
+  else if (studio.step === "acquire") renderStudioAcquire(heading, body);
+  else if (studio.step === "detail") renderStudioDetail(heading, body);
+  else if (studio.step === "format") renderStudioFormat(heading, body);
+  else if (studio.step === "cast") renderStudioCast(heading, body);
+  else renderStudioBudget(heading, body);
+}
+
+function studioNav(back) {
+  const row = document.createElement("div");
+  row.className = "modal-actions";
+  const close = document.createElement("button");
+  close.type = "button";
+  close.className = "reset-button";
+  close.textContent = "Close";
+  close.addEventListener("click", closeCommission);
+  row.append(close);
+  if (back) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "reset-button";
+    button.textContent = "Back";
+    button.addEventListener("click", () => { studio.step = back; renderStudio(); });
+    row.append(button);
+  }
+  return row;
+}
+
+function renderStudioPath(heading, body) {
+  heading.textContent = "Content";
+  const copy = document.createElement("p");
+  copy.className = "modal-line";
+  copy.textContent = "License a famous title, or build an original with a real cast.";
+  const row = document.createElement("div");
+  row.className = "modal-actions";
+  const acquire = document.createElement("button");
+  acquire.type = "button";
+  acquire.className = "buy-button";
+  acquire.textContent = "Acquire a famous title";
+  acquire.addEventListener("click", () => { studio.step = "acquire"; renderStudio(); });
+  const create = document.createElement("button");
+  create.type = "button";
+  create.className = "buy-button";
+  create.textContent = "Create an original";
+  create.addEventListener("click", () => { studio.step = "format"; renderStudio(); });
+  row.append(acquire, create);
+  body.append(copy, row, studioNav());
+}
+
+function renderStudioAcquire(heading, body) {
+  heading.textContent = "Acquire";
+  const tabs = document.createElement("div");
+  tabs.className = "shelf-tabs";
+  const names = [["trending", "Trending now"], ["critics", "Critics' picks"], ["crowd", "Crowd pleasers"], ["comedy", "Comedy"], ["drama", "Drama"], ["sport", "Sport"], ["kids", "Kids"], ["documentary", "Documentary"], ["reality", "Reality"]];
+  REGIONS.forEach((region) => {
+    if (!state.regions[region.id].unlocked) return;
+    ((CONFIG.tmdb || {}).regions[region.id] || []).forEach((code) => names.push([`local-${code}`, `${region.name} originals`]));
+  });
+  names.forEach(([id, label]) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = studio.shelf === id ? "filter is-on" : "filter";
+    button.textContent = label;
+    button.addEventListener("click", () => { studio.shelf = id; renderStudio(); });
+    tabs.append(button);
+  });
+  const search = document.createElement("input");
+  search.className = "name-field";
+  search.placeholder = "Search titles";
+  search.value = studio.query || "";
+  search.addEventListener("input", () => { studio.query = search.value; renderShelf(grid, search.value); });
+  const grid = document.createElement("div");
+  grid.className = "shelf-grid";
+  body.append(tabs, search, grid, studioNav("path"));
+  renderShelf(grid, studio.query);
+  if ((studio.query || "").trim().length > 1 && !catalogue.offline) searchRemote(studio.query.trim(), grid);
+}
+
+function renderShelf(grid, query) {
+  grid.replaceChildren();
+  let rows = [];
+  const text = (query || "").trim().toLowerCase();
+  if (text) rows = catalogue.titles.filter((row) => row.title.toLowerCase().indexOf(text) >= 0).slice(0, 12);
+  else rows = shelfKeys(studio.shelf).map((key) => catalogue.map[key]).filter(Boolean).filter((row) => !ownedTmdb(row)).slice(0, 12);
+  if (!rows.length) {
+    grid.append(document.createTextNode(catalogue.ready ? "Nothing on this shelf yet." : "Loading catalogue..."));
+    return;
+  }
+  rows.forEach((row) => grid.append(titleCard(row)));
+}
+
+function titleCard(row) {
+  const ask = titleAsk(row);
+  const card = document.createElement("button");
+  card.type = "button";
+  card.className = "title-card";
+  if (row.poster_path) {
+    const img = document.createElement("img");
+    img.alt = "";
+    img.loading = "lazy";
+    img.src = posterUrl(row.poster_path);
+    img.addEventListener("error", () => img.remove());
+    card.append(img);
+  }
+  const name = document.createElement("strong");
+  name.textContent = row.title;
+  const meta = document.createElement("span");
+  const year = (row.release_date || "").slice(0, 4);
+  meta.textContent = `${year || "—"} · ${row.genre} · ${formatCash(ask.cost)} · upkeep ${formatCash(ask.upkeep)}/day`;
+  card.append(name, meta);
+  card.addEventListener("click", () => {
+    studio.selected = row;
+    studio.step = "detail";
+    renderStudio();
+    enrichTitle(row).then(() => { if (studio && studio.step === "detail" && studio.selected === row) renderStudio(); });
+  });
+  return card;
+}
+
+let searchTimer = null;
+function searchRemote(query, grid) {
+  if (searchTimer) clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => {
+    Promise.all([
+      tmdbGet("/search/tv", { query, include_adult: false }).catch(() => ({ results: [] })),
+      tmdbGet("/search/movie", { query, include_adult: false }).catch(() => ({ results: [] })),
+    ]).then((pages) => {
+      if (!studio || studio.query !== query) return;
+      pages.forEach((page, index) => {
+        (page.results || []).slice(0, 6).forEach((item) => {
+          const row = trimTitle(item, index === 0 ? "tv" : "movie");
+          if (!catalogue.map[row.key]) {
+            catalogue.map[row.key] = row;
+            catalogue.titles.push(row);
+          }
+        });
+      });
+      renderShelf(grid, query);
+    });
+  }, 280);
+}
+
+function renderStudioDetail(heading, body) {
+  const row = studio.selected;
+  heading.textContent = row ? row.title : "Title";
+  if (!row) return;
+  const ask = titleAsk(row);
+  if (row.poster_path) {
+    const img = document.createElement("img");
+    img.className = "detail-poster";
+    img.alt = "";
+    img.src = posterUrl(row.poster_path);
+    body.append(img);
+  }
+  const copy = document.createElement("p");
+  copy.className = "modal-line";
+  copy.textContent = `${row.tagline ? `${row.tagline} ` : ""}${row.overview || "No overview yet."}`;
+  const meta = document.createElement("p");
+  meta.className = "modal-line";
+  const length = row.mediaType === "tv" ? `${row.seasons || "?"} seasons` : `${row.runtime || "?"} min`;
+  meta.textContent = `${row.genre} · ${length} · critics ${Math.round((row.vote_average || 0) * 10)} · audience ${Math.round((row.percentile || 0.5) * 100)} · ${formatCash(ask.cost)}`;
+  body.append(copy, meta);
+  (row.billed || []).forEach((person) => {
+    const line = document.createElement("p");
+    line.className = "modal-line";
+    line.textContent = person.name;
+    body.append(line);
+  });
+  const kind = payKind(ask.cost);
+  const buy = document.createElement("button");
+  buy.type = "button";
+  buy.className = kind === "credit" ? "buy-button buy-credit" : "buy-button";
+  buy.disabled = kind === "over" || ownedTmdb(row);
+  buy.textContent = ownedTmdb(row) ? "Already owned" : kind === "over" ? "Over credit limit" : kind === "credit" ? "Buy on credit" : "Buy";
+  const after = document.createElement("p");
+  after.className = "fine-print";
+  after.textContent = `Balance after: ${formatCash(state.cash - ask.cost)}`;
+  buy.addEventListener("click", () => { if (acquireTitle(row)) closeCommission(); });
+  const nav = studioNav("acquire");
+  nav.prepend(buy);
+  body.append(after, nav);
+}
+
+function renderStudioFormat(heading, body) {
+  heading.textContent = "Format and genre";
+  const formats = document.createElement("div");
+  formats.className = "pick-grid";
+  Object.keys(CONFIG.formats || {}).forEach((id) => {
+    const format = CONFIG.formats[id];
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = studio.format === id ? "pick is-on" : "pick";
+    button.textContent = format.name;
+    button.addEventListener("click", () => {
+      studio.format = id;
+      if (format.genre) studio.genre = format.genre;
+      renderStudio();
+    });
+    formats.append(button);
+  });
+  const genres = document.createElement("div");
+  genres.className = "pick-grid";
+  GENRES.forEach((genre) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = studio.genre === genre ? "pick is-on" : "pick";
+    button.textContent = genre;
+    button.addEventListener("click", () => { studio.genre = genre; renderStudio(); });
+    genres.append(button);
+  });
+  const name = document.createElement("input");
+  name.value = studio.name;
+  name.maxLength = 42;
+  name.placeholder = "Title";
+  name.addEventListener("input", () => { studio.name = name.value; });
+  const surprise = document.createElement("button");
+  surprise.type = "button";
+  surprise.className = "reset-button";
+  surprise.textContent = "Surprise me";
+  surprise.addEventListener("click", () => { studio.name = surpriseTitle(); renderStudio(); });
+  const regions = document.createElement("div");
+  regions.className = "pick-grid";
+  REGIONS.filter((region) => state.regions[region.id].unlocked).forEach((region) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = studio.localRegion === region.id ? "pick is-on" : "pick";
+    button.textContent = region.id === "uk" ? "Home" : region.name;
+    button.addEventListener("click", () => { studio.localRegion = region.id; renderStudio(); });
+    regions.append(button);
+  });
+  const next = document.createElement("button");
+  next.type = "button";
+  next.className = "buy-button";
+  next.textContent = "Cast";
+  next.addEventListener("click", () => {
+    if (!studio.name.trim()) studio.name = surpriseTitle();
+    studio.step = "cast";
+    renderStudio();
+  });
+  body.append(formats, genres, name, surprise, regions, next, studioNav("path"));
+}
+
+function castPool(role) {
+  const list = catalogue.actors.slice();
+  const seed = (studio.refresh || 0) + (role === "support" ? 17 : 3) + studio.genre.length;
+  list.sort((a, b) => ((a.id * seed) % 97) - ((b.id * seed) % 97));
+  return list.slice(0, 5);
+}
+
+function renderStudioCast(heading, body) {
+  heading.textContent = studio.role === "support" ? "Supporting actor" : "Lead";
+  const search = document.createElement("input");
+  search.placeholder = "Search actors";
+  search.addEventListener("change", () => searchPeople(search.value, list));
+  const list = document.createElement("div");
+  list.className = "cast-grid";
+  const people = (studio.actorQuery ? catalogue.actors.filter((actor) => actor.name.toLowerCase().indexOf(studio.actorQuery) >= 0).slice(0, 5) : castPool(studio.role));
+  people.forEach((actor) => list.append(actorCard(actor)));
+  const shuffle = document.createElement("button");
+  shuffle.type = "button";
+  shuffle.className = "reset-button";
+  shuffle.textContent = "Show other names";
+  shuffle.addEventListener("click", () => { studio.refresh += 1; studio.actorQuery = ""; renderStudio(); });
+  body.append(search, list, shuffle, studioNav("format"));
+}
+
+function actorCard(actor) {
+  const card = document.createElement("button");
+  card.type = "button";
+  card.className = "actor-card";
+  if (actor.profile_path) {
+    const img = document.createElement("img");
+    img.alt = "";
+    img.loading = "lazy";
+    img.src = profileUrl(actor.profile_path);
+    img.addEventListener("error", () => { img.replaceWith(document.createTextNode("🎭")); });
+    card.append(img);
+  } else card.append(document.createTextNode("🎭"));
+  const name = document.createElement("strong");
+  name.textContent = actor.name;
+  const meta = document.createElement("span");
+  const fit = genreFit(actor, studio.genre);
+  meta.textContent = `${formatCash(actor.fee || 0)} · Star ${actor.star || "?"} · Critics ${actor.critic || "?"} · Fans ${actor.fan || "?"} · ${actor.archetype || "Working Actor"} · ${fit}`;
+  card.append(name, meta);
+  if (catalogue.hot[actor.id]) {
+    const hot = document.createElement("em");
+    hot.textContent = "Hot this week";
+    card.append(hot);
+  }
+  card.addEventListener("click", () => chooseActor(actor));
+  if (!actor.detailed && !catalogue.offline) {
+    enrichActor(actor).then(() => { if (studio && studio.step === "cast") renderStudio(); });
+  }
+  return card;
+}
+
+function chooseActor(actor) {
+  if (studio.role === "lead") {
+    studio.lead = actor;
+    studio.role = "support";
+    renderStudio();
+    return;
+  }
+  studio.support = actor;
+  studio.step = "budget";
+  renderStudio();
+}
+
+async function enrichActor(actor) {
+  if (!actor || actor.detailed || catalogue.offline) return actor;
+  actor.detailed = true;
+  try {
+    const data = await tmdbGet(`/person/${actor.id}`, { append_to_response: "combined_credits" });
+    actor.birthday = data.birthday || actor.birthday;
+    actor.profile_path = data.profile_path || actor.profile_path;
+    actor.popularity = data.popularity || actor.popularity;
+    const credits = ((data.combined_credits && data.combined_credits.cast) || []).slice().sort((a, b) => (b.vote_count || 0) - (a.vote_count || 0)).slice(0, 8);
+    actor.credits = credits.map((credit) => ({
+      genre_ids: credit.genre_ids || [],
+      vote_average: credit.vote_average || 0,
+      vote_count: credit.vote_count || 0,
+    }));
+    scoreActors(catalogue.actors);
+  } catch (err) {
+    catalogue.errors.push(`actor ${actor.id}`);
+  }
+  return actor;
+}
+
+function searchPeople(query, list) {
+  const text = query.trim().toLowerCase();
+  studio.actorQuery = text;
+  if (!text || catalogue.offline) {
+    renderStudio();
+    return;
+  }
+  tmdbGet("/search/person", { query }).then((page) => {
+    (page.results || []).filter((person) => person.known_for_department === "Acting").slice(0, 5).forEach((person) => {
+      if (!catalogue.actors.some((actor) => actor.id === person.id)) catalogue.actors.push(trimActor(person));
+    });
+    scoreActors(catalogue.actors);
+    renderStudio();
+  }).catch(() => renderStudio());
+}
+
+function renderStudioBudget(heading, body) {
+  heading.textContent = "Budget";
+  const budgets = document.createElement("div");
+  budgets.className = "pick-grid";
+  Object.keys(BUDGETS).forEach((id) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = studio.budget === id ? "pick is-on" : "pick";
+    button.textContent = BUDGETS[id].name;
+    button.addEventListener("click", () => { studio.budget = id; renderStudio(); });
+    budgets.append(button);
+  });
+  const directors = document.createElement("div");
+  directors.className = "pick-grid";
+  Object.keys(CONFIG.directors || {}).forEach((id) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = studio.director === id ? "pick is-on" : "pick";
+    button.textContent = CONFIG.directors[id].name;
+    button.addEventListener("click", () => { studio.director = id; renderStudio(); });
+    directors.append(button);
+  });
+  const marketing = document.createElement("div");
+  marketing.className = "pick-grid";
+  Object.keys(CONFIG.marketingSpend || { off: 0 }).forEach((id) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = studio.marketing === id ? "pick is-on" : "pick";
+    button.textContent = `${id} · ${formatCash(CONFIG.marketingSpend[id] || 0)}`;
+    button.addEventListener("click", () => { studio.marketing = id; renderStudio(); });
+    marketing.append(button);
+  });
+  const plan = productionPlan();
+  const predict = document.createElement("p");
+  predict.className = "modal-line";
+  predict.textContent = `About ${plan.days} days. Total ${formatCash(plan.cost)}. Balance after ${formatCash(state.cash - plan.cost)}. Predicted opening is a range, not a promise: critics roughly 50–90, audience roughly 45–90, depending on the cast, the budget, and luck.`;
+  const kind = payKind(plan.cost);
+  const go = document.createElement("button");
+  go.type = "button";
+  go.className = kind === "credit" ? "buy-button buy-credit" : "buy-button";
+  go.disabled = kind === "over";
+  go.textContent = kind === "over" ? "Over credit limit" : kind === "credit" ? "Start on credit" : "Start production";
+  go.addEventListener("click", startOriginal);
+  body.append(budgets, directors, marketing, predict, go, studioNav("cast"));
+}
+
+function renderCredit(view) {
+  const note = document.getElementById("credit-note");
+  const limit = view.creditLimit || 0;
+  const debt = view.debt || 0;
+  if (note) note.textContent = `Limit ${formatCash(limit)} · free ${formatCash(Math.max(0, limit - debt))}`;
+  const fill = document.getElementById("credit-fill");
+  if (fill) {
+    const pct = limit ? clamp(debt / limit, 0, 1) : 0;
+    fill.style.width = `${pct * 100}%`;
+    fill.classList.toggle("is-amber", pct >= 0.5 && pct < 0.8);
+    fill.classList.toggle("is-red", pct >= 0.8);
+  }
+  const chip = document.getElementById("debt-chip");
+  if (chip) chip.hidden = view.cash >= 0;
+  const banner = document.getElementById("bust-banner");
+  if (banner) {
+    const left = ((CONFIG.credit || {}).bankruptcyDays || 30) - (view.daysBelowLoseLine || 0);
+    const show = view.status === "playing" && view.daysBelowLoseLine > 0;
+    banner.hidden = !show;
+    if (show) banner.textContent = `Bankruptcy countdown: ${left} days to get back inside the credit limit`;
+  }
+  const ad = document.getElementById("ad-tier");
+  if (ad && document.activeElement !== ad) ad.checked = !!state.adTier;
+}
+
+function renderHero(view) {
+  const count = document.getElementById("hero-subs");
+  if (count) count.textContent = formatSubscribers(view.subscribers);
+  const chip = document.getElementById("hero-delta");
+  if (chip) {
+    const delta = Math.round(view.netPaid || 0);
+    chip.textContent = `${delta > 0 ? "+" : ""}${delta} today`;
+    chip.className = `sub-chip ${delta < 0 ? "down" : "up"}`;
+  }
+  const tiers = [1000, 10000, 100000, 1000000, 5000000, empireGoals().subscribers].filter((value, index, list) => list.indexOf(value) === index).sort((a, b) => a - b);
+  const next = tiers.filter((tier) => tier > view.subscribers)[0] || tiers[tiers.length - 1];
+  const prev = tiers.filter((tier) => tier <= view.subscribers).pop() || 0;
+  const bar = document.getElementById("mile-fill");
+  if (bar) bar.style.width = `${clamp((view.subscribers - prev) / Math.max(1, next - prev), 0, 1) * 100}%`;
+  setText("mile-copy", next > view.subscribers ? `${formatSubscribers(next - view.subscribers)} to ${formatSubscribers(next)}` : "Top milestone reached");
+  renderCrowd(view);
+  renderShare(view);
+  const note = document.getElementById("offline-note");
+  if (note) note.hidden = !(catalogue && catalogue.offline);
+}
+
+function renderCrowd(view) {
+  const root = document.getElementById("crowd");
+  const label = document.getElementById("crowd-scale");
+  if (!root) return;
+  let scale = 100;
+  while (view.subscribers / scale > 72 && scale < 10000000) scale *= 10;
+  const count = Math.max(1, Math.min(72, Math.round(view.subscribers / scale) || 1));
+  if (label) label.textContent = `${formatSubscribers(scale)} per icon`;
+  if (root.childElementCount === count) return;
+  root.replaceChildren();
+  for (let index = 0; index < count; index += 1) {
+    const icon = document.createElement("span");
+    icon.className = "crowd-icon";
+    icon.textContent = "📺";
+    root.append(icon);
+  }
+}
+
+function renderShare(view) {
+  const root = document.getElementById("market-share");
+  if (!root) return;
+  root.replaceChildren();
+  leaderboardRows().forEach((row) => {
+    const bar = document.createElement("span");
+    bar.style.width = `${Math.max(2, row.share * 100)}%`;
+    bar.style.background = row.color;
+    bar.title = row.name;
+    root.append(bar);
+  });
+}
+
+function renderEmpire(view) {
+  const root = document.getElementById("empire-panel");
+  if (!root) return;
+  const goals = empireGoals();
+  const debt = Math.max(0, -state.cash);
+  const limit = Math.max(1, view.creditLimit || 1);
+  const profitPct = clamp((state.profitableStreak || 0) / (CONFIG.profitableDays || 60), 0, 1);
+  const debtOk = debt < limit * (CONFIG.healthyDebtRatio || 0.25);
+  const healthyPct = debtOk ? profitPct : Math.min(profitPct, clamp(1 - debt / limit, 0, 1));
+  const rows = [
+    ["Company value", view.companyValue || 0, goals.companyValue, formatCash(view.companyValue || 0)],
+    ["Subscribers", view.subscribers, goals.subscribers, formatSubscribers(view.subscribers)],
+    ["Healthy business", healthyPct, 1, debtOk ? `${state.profitableStreak || 0}/${CONFIG.profitableDays || 60} profitable days` : "Debt is above the healthy line"],
+  ];
+  root.replaceChildren();
+  const title = document.createElement("h3");
+  title.className = "slot-title";
+  title.textContent = "Road to Empire";
+  root.append(title);
+  rows.forEach(([label, current, goal, text]) => {
+    const wrap = document.createElement("div");
+    wrap.className = "empire-row";
+    const head = document.createElement("p");
+    head.textContent = `${label} · ${text}`;
+    const bar = document.createElement("div");
+    bar.className = "progress";
+    const span = document.createElement("span");
+    span.style.width = `${clamp(current / Math.max(1, goal), 0, 1) * 100}%`;
+    bar.append(span);
+    wrap.append(head, bar);
+    root.append(wrap);
+  });
+  if ((view.companyValue || 0) >= goals.companyValue && view.subscribers >= goals.subscribers && businessHealthy()) {
+    const hold = document.createElement("p");
+    hold.className = "modal-line";
+    hold.textContent = `30-day hold: ${state.empireHold || 0}/${CONFIG.holdDays || 30}`;
+    root.append(hold);
+  }
+}
+
+function drawCashChart(canvas) {
+  if (!canvas || !analytics.length) return;
+  const limit = creditLimit();
+  drawLines(canvas, [
+    { color: "#4C6FFF", values: analytics.map((row) => row.cash || 0) },
+    { color: "#F5A623", values: analytics.map(() => -limit) },
+    { color: "#A0A0B0", values: analytics.map(() => 0) },
+  ]);
+}
+
+function renderCatalogueDebug() {
+  const root = document.getElementById("catalogue-debug");
+  if (!root) return;
+  root.replaceChildren();
+  const status = document.createElement("p");
+  status.textContent = catalogue.offline ? "Offline catalogue" : catalogue.ready ? "Live catalogue" : "Loading catalogue...";
+  root.append(status);
+  catalogue.titles.slice(0, 4).forEach((row) => {
+    const line = document.createElement("p");
+    line.textContent = `${row.title} · ${row.genre} · ${row.vote_average}`;
+    root.append(line);
+  });
+  catalogue.actors.slice(0, 4).forEach((actor) => {
+    const line = document.createElement("p");
+    line.textContent = `${actor.name} · star ${actor.star || "?"} · ${actor.archetype || ""}`;
+    root.append(line);
+  });
+  catalogue.errors.slice(-6).forEach((error) => {
+    const line = document.createElement("p");
+    line.textContent = error;
+    root.append(line);
+  });
+}
+
+function debugCatalogue() {
+  return {
+    offline: catalogue.offline,
+    ready: catalogue.ready,
+    titles: catalogue.titles.slice(0, 8).map((row) => row.title),
+    actors: catalogue.actors.slice(0, 8).map((actor) => actor.name),
+    errors: catalogue.errors.slice(),
+  };
+}
+
+function hookStudioUi() {
+  const ad = document.getElementById("ad-tier");
+  if (ad) ad.addEventListener("change", () => { state.adTier = ad.checked; syncView(); saveGame(); });
+  const help = document.getElementById("settings-guide");
+  if (help) help.addEventListener("click", () => { closeSettings(); openGuide(state.status === "playing" ? "pause" : "browse"); });
+  const refresh = document.getElementById("settings-refresh");
+  if (refresh) refresh.addEventListener("click", () => {
+    try { localStorage.removeItem((CONFIG.tmdb || {}).cacheKey || "streamco_tmdb_cache_v1"); } catch (err) { /* ignore */ }
+    cataloguePromise = null;
+    catalogueReady = false;
+    ensureCatalogue();
+  });
+}
+
+function autoPlayContent() {
+  const live = titles.filter((title) => title.status === "released" || title.status === "producing").length;
+  if (live < 8 && state.day > 0 && state.day % 30 === 0) {
+    commission(GENRES[state.day % GENRES.length], state.day > 280 ? "standard" : "low");
+  }
+  if (state.day === 16) buyUpgrade("social");
+  if (state.day === 28) buyUpgrade("recommendations");
+  if (state.day === 90) buyUpgrade("tv");
+  if (state.day === 120) buyUpgrade("servers");
+  if (state.day >= 220 && state.day % 40 === 0 && paidSubscribers() > 8000) signLicense("football");
+  if (state.day % 40 === 0) {
+    const next = REGIONS.find((region) => !state.regions[region.id].unlocked);
+    if (next && paidSubscribers() > next.unlock) unlockRegion(next.id);
+    REGIONS.forEach((region) => {
+      const row = state.regions[region.id];
+      if (row.unlocked && !row.localised && region.localise) localiseRegion(region.id);
+    });
+  }
+}
+
+function balanceTest() {
+  const savedRng = rng;
+  const strategies = [2, 5, 10, 20, "adaptive"];
+  const report = strategies.map((strategy) => {
+    let seed = 24681357;
+    rng = function seeded() {
+      seed = (seed * 1664525 + 1013904223) % 4294967296;
+      return seed / 4294967296;
+    };
+    beginGame("normal");
+    state.nextEventDay = Infinity;
+    const fixed = strategy === "adaptive" ? 8 : Number(strategy);
+    state.monthlyPrice = fixed;
+    state.priceAnchor = fixed;
+    const maxDays = 2600;
+    for (let step = 0; step < maxDays && state.status === "playing"; step += 1) {
+      if (strategy === "adaptive" && state.day % 14 === 0) {
+        let bestPrice = state.monthlyPrice;
+        let bestScore = -Infinity;
+        for (let price = 2; price <= 20; price += 1) {
+          const score = estimateProfit(price);
+          if (score > bestScore) {
+            bestScore = score;
+            bestPrice = price;
+          }
+        }
+        const moved = clamp(state.monthlyPrice + clamp(bestPrice - state.monthlyPrice, -2, 2), 2, 20);
+        state.monthlyPrice = moved;
+        state.priceAnchor = moved;
+      }
+      if (strategy !== "adaptive") {
+        state.monthlyPrice = fixed;
+        state.priceAnchor = fixed;
+        state.priceHikeDays = 0;
+      }
+      autoPlayContent();
+      tick({ log: false });
+    }
+    return {
+      strategy: String(strategy),
+      status: state.status,
+      day: state.day,
+      subscribers: Math.round(paidSubscribers()),
+      value: Math.round(companyValue()),
+      cash: Math.round(state.cash),
+      price: state.monthlyPrice,
+    };
+  });
+  rng = savedRng;
+  beginGame("normal");
+  return report;
 }
 
 const api = {
@@ -3422,6 +5105,8 @@ const api = {
   loadGame,
   catchUp,
   debugFire,
+  balanceTest,
+  debugCatalogue,
   priceAttractiveness,
   churnRate,
   subscriberGrowth,
