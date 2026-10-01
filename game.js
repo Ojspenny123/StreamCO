@@ -29,12 +29,10 @@ const ORGANIC_SIGNUP_RATE = 0.008;
 const MAX_LOG_ENTRIES = 40;
 const MAX_HISTORY = 480;
 
-const DIFFICULTIES = {
-  easy: { id: "easy", name: "Easy", cash: 20000, rivals: 2, severity: 0.6, eventMin: 30, eventSpan: 21, rivalStrength: 0.72, events: true, canLose: true },
-  normal: { id: "normal", name: "Normal", cash: 10000, rivals: 3, severity: 1, eventMin: 20, eventSpan: 21, rivalStrength: 1, events: true, canLose: true },
-  hard: { id: "hard", name: "Hard", cash: 6000, rivals: 4, severity: 1.35, eventMin: 15, eventSpan: 14, rivalStrength: 1.22, events: true, canLose: true },
-  sandbox: { id: "sandbox", name: "Sandbox", cash: 40000, rivals: 2, severity: 1, eventMin: 999, eventSpan: 1, rivalStrength: 0.45, events: false, canLose: false },
-};
+const CONFIG = (typeof window !== "undefined" && window.STREAMCO_CONFIG)
+  || (typeof require === "function" ? require("./config.js") : {});
+
+const DIFFICULTIES = CONFIG.difficulties;
 
 const GENRES = ["Comedy", "Drama", "Sport", "Kids", "Documentary", "Reality"];
 
@@ -148,7 +146,14 @@ let logFilter = "all";
 let currentTab = "home";
 let tableSort = { key: "revenue", dir: -1 };
 let tutorialIndex = -1;
-let settings = { animations: true, tutorialDismissed: false };
+let settings = { animations: true, tutorialDismissed: false, skipGuide: false };
+let draft = { difficulty: "normal", sandbox: false, name: "" };
+let guideMode = "new";
+let guidePage = 0;
+let guideOpen = false;
+let catalogueReady = true;
+let cataloguePromise = null;
+let wasPausedBeforeGuide = false;
 let uiEvents = [];
 let uiBound = false;
 let animationGeneration = 0;
@@ -177,7 +182,16 @@ function roundSubscribers(value) {
 }
 
 function difficulty() {
-  return DIFFICULTIES[state.difficulty] || DIFFICULTIES.normal;
+  const base = DIFFICULTIES[state.difficulty] || DIFFICULTIES.normal;
+  if (state && state.sandbox && base.events !== false) {
+    return Object.assign({}, base, { events: false, canLose: false, name: `${base.name} · Sandbox` });
+  }
+  return base;
+}
+
+function displayName() {
+  const name = state && typeof state.serviceName === "string" ? state.serviceName.trim() : "";
+  return name || SERVICE_NAME;
 }
 
 function regionDef(id) {
@@ -274,6 +288,8 @@ function createInitialState(difficultyId) {
     beatRival: false,
     sportsSigned: false,
     scoreSaved: false,
+    serviceName: SERVICE_NAME,
+    sandbox: false,
     savedAt: Date.now(),
   };
 }
@@ -510,7 +526,8 @@ function snapshot() {
   state.subscribers = paid;
 
   return {
-    serviceName: SERVICE_NAME,
+    serviceName: displayName(),
+    sandbox: !!state.sandbox,
     day: state.day,
     cash: state.cash,
     subscribers: paid,
@@ -1377,10 +1394,16 @@ function readScores() {
   }
 }
 
+function scoreBucket() {
+  if (state.sandbox && state.difficulty !== "sandbox") return "sandbox";
+  return state.difficulty;
+}
+
 function recordScore() {
   if (state.scoreSaved || typeof localStorage === "undefined") return;
   const all = readScores();
-  const list = Array.isArray(all[state.difficulty]) ? all[state.difficulty] : [];
+  const bucket = scoreBucket();
+  const list = Array.isArray(all[bucket]) ? all[bucket] : [];
   list.push({
     score: computeScore(),
     day: state.day,
@@ -1389,7 +1412,7 @@ function recordScore() {
     brand: Math.round(state.brand),
   });
   list.sort((a, b) => b.score - a.score);
-  all[state.difficulty] = list.slice(0, 5);
+  all[bucket] = list.slice(0, 5);
   try {
     localStorage.setItem(SCORE_KEY, JSON.stringify(all));
   } catch (err) {
@@ -1478,11 +1501,11 @@ function checkMilestones(total) {
 }
 
 function logIntro() {
-  console.log(`${SERVICE_NAME} is open on ${difficulty().name}. Cash ${formatCash(state.cash)}, subscribers ${formatSubscribers(paidSubscribers())}.`);
+  console.log(`${displayName()} is open on ${difficulty().name}. Cash ${formatCash(state.cash)}, subscribers ${formatSubscribers(paidSubscribers())}.`);
 }
 
 function logDay(before, after) {
-  console.log(`${SERVICE_NAME} Day ${after.day} Cash ${formatCash(after.cash)} (${formatSignedMoney(before.netCash)}) Subs ${formatSubscribers(after.subscribers)} (${formatSignedNumber(before.netPaid, 2)})`);
+  console.log(`${displayName()} Day ${after.day} Cash ${formatCash(after.cash)} (${formatSignedMoney(before.netCash)}) Subs ${formatSubscribers(after.subscribers)} (${formatSignedNumber(before.netPaid, 2)})`);
 }
 
 function start() {
@@ -1499,6 +1522,7 @@ function stop() {
 }
 
 function setSpeed(value) {
+  if (!state) return;
   if (value === 0) {
     state.paused = true;
   } else {
@@ -1508,7 +1532,16 @@ function setSpeed(value) {
   stop();
   start();
   paintSpeed();
+  syncPauseOverlay();
   saveGame();
+}
+
+function syncPauseOverlay() {
+  if (typeof document === "undefined") return;
+  const overlay = document.getElementById("pause-overlay");
+  if (!overlay) return;
+  const show = !!(state && state.status === "playing" && state.paused && !guideOpen && !blocking && menuDepth === 0 && !welcomeHold);
+  overlay.hidden = !show;
 }
 
 function beginGame(difficultyId) {
@@ -1517,9 +1550,11 @@ function beginGame(difficultyId) {
   welcomeHold = false;
   menuDepth = 0;
   promptQueue = [];
+  guideOpen = false;
   resetProgress(difficultyId || "normal");
   if (hasUi()) {
     hideStart();
+    syncPauseOverlay();
     resetUi();
     if (!settings.tutorialDismissed) openTutorial(0);
   }
@@ -1533,11 +1568,15 @@ function beginGame(difficultyId) {
 function returnToMenu() {
   stop();
   resetProgress("normal");
-  state.status = "setup";
+  state.status = "menu";
+  state.paused = false;
+  draft = { difficulty: "normal", sandbox: false, name: "" };
+  guideOpen = false;
   clearSave();
   if (hasUi()) {
     resetUi();
-    showStart();
+    syncPauseOverlay();
+    showTitle();
   }
   return snapshot();
 }
@@ -1587,10 +1626,11 @@ function setContentUpkeep(upkeep) {
 function openingEvent() {
   const diffName = state ? difficulty().name : "Normal";
   const cash = state ? state.cash : DIFFICULTIES.normal.cash;
+  const name = state ? displayName() : SERVICE_NAME;
   return {
     day: 0,
     category: "events",
-    parts: [{ text: `${SERVICE_NAME} is open on ${diffName}. ${formatSubscribers(STARTING_SUBSCRIBERS)} subscribers, ${formatCash(cash)} cash.`, tone: "neutral" }],
+    parts: [{ text: `${name} is open on ${diffName}. ${formatSubscribers(STARTING_SUBSCRIBERS)} subscribers, ${formatCash(cash)} cash.`, tone: "neutral" }],
   };
 }
 
@@ -1619,7 +1659,7 @@ function serialize() {
 }
 
 function saveGame() {
-  if (typeof localStorage === "undefined" || !state || state.status === "setup") return;
+  if (typeof localStorage === "undefined" || !state || state.status === "setup" || state.status === "menu") return;
   state.savedAt = Date.now();
   try {
     localStorage.setItem(SAVE_KEY, JSON.stringify(serialize()));
@@ -1646,6 +1686,9 @@ function applyLoaded(data) {
   state.recentEvents = state.recentEvents || [];
   state.eventDays = state.eventDays || [];
   state.freeUsers = Number.isFinite(state.freeUsers) ? state.freeUsers : 0;
+  state.serviceName = typeof state.serviceName === "string" && state.serviceName.trim() ? state.serviceName.trim().slice(0, 24) : SERVICE_NAME;
+  state.sandbox = !!state.sandbox || state.difficulty === "sandbox";
+  if (!Number.isFinite(state.speed) || state.speed < 1) state.speed = 1;
   owned = { ...emptyOwned(), ...(data.owned || {}) };
   titles = Array.isArray(data.titles) ? data.titles : [];
   rivals = Array.isArray(data.rivals) ? data.rivals : createRivals(difficulty());
@@ -1825,11 +1868,13 @@ function tierName(subscribers) {
 function holdClock() {
   menuDepth += 1;
   stop();
+  syncPauseOverlay();
 }
 
 function releaseClock() {
   menuDepth = Math.max(0, menuDepth - 1);
   start();
+  syncPauseOverlay();
 }
 
 function enqueuePrompt(prompt) {
@@ -1840,6 +1885,7 @@ function enqueuePrompt(prompt) {
 function pumpPrompts() {
   if (!hasUi() || blocking || !promptQueue.length) {
     if (!blocking && !welcomeHold && menuDepth === 0) start();
+    syncPauseOverlay();
     return;
   }
   blocking = true;
@@ -1941,11 +1987,92 @@ function showWelcome(summary) {
   document.getElementById("welcome-modal").hidden = false;
 }
 
-function showStart() {
-  const screen = document.getElementById("start-screen");
-  if (!screen) return;
-  const scores = readScores();
+function hasSave() {
+  if (typeof localStorage === "undefined") return false;
+  try {
+    return !!(localStorage.getItem(SAVE_KEY) || localStorage.getItem(SAVE_KEY_V1));
+  } catch (err) {
+    return false;
+  }
+}
+
+function formatRoundMillions(amount) {
+  const n = Math.abs(Math.round(amount));
+  if (n >= 1000000 && n % 1000000 === 0) return `${n / 1000000}M`;
+  return formatSubscribers(n);
+}
+
+function empireTarget(id) {
+  const table = CONFIG.empire || {};
+  return table[id] || table.normal || { companyValue: 150000000, subscribers: 5000000 };
+}
+
+function guideDifficultyId() {
+  if ((guideMode === "pause" || guideMode === "browse") && state && state.status === "playing" && state.difficulty) return state.difficulty;
+  return draft.difficulty || "normal";
+}
+
+function guidePages() {
+  const id = guideDifficultyId();
+  const diff = DIFFICULTIES[id] || DIFFICULTIES.normal;
+  const target = empireTarget(id);
+  const hold = CONFIG.holdDays || 30;
+  const value = `$${formatRoundMillions(target.companyValue)}`;
+  const subs = formatRoundMillions(target.subscribers);
+  const showing = guideMode === "browse" ? `Showing ${diff.name} targets. ` : "";
+  return [
+    {
+      emoji: "🎯",
+      title: "The goal",
+      body: `${showing}Build a streaming empire on ${diff.name}. Hold all three for ${hold} days: Company Value ${value}, ${subs} subscribers, and a healthy business. Don't go bankrupt.`,
+    },
+    {
+      emoji: "📊",
+      title: "The top bar",
+      body: "Cash is the money you have. Subscribers pay the monthly price. Day is the clock. Price is what you charge. Credit is how far you can go into debt. Brand is your reputation.",
+    },
+    {
+      emoji: "💰",
+      title: "Price",
+      body: "A cheap price grows fast, but every subscriber costs money to serve, so profit gets thin. An expensive price grows slowly and raises churn. Raise the price gradually and find the sweet spot.",
+    },
+    {
+      emoji: "🎬",
+      title: "Content and cast",
+      body: "Acquire a famous title, or create an original with real stars. Great titles and big names bring subscribers, and they cost more. Check the critic score and the audience score.",
+    },
+    {
+      emoji: "💳",
+      title: "Debt",
+      body: "You can buy things on credit and grow faster. Interest is charged every day you are in debt. If you go past your credit limit, a bankruptcy countdown starts.",
+    },
+    {
+      emoji: "🎲",
+      title: "Events and rivals",
+      body: "Random events and rival streamers will shake the business. Read the choices. A quick win can cost you later. Pick carefully.",
+    },
+    {
+      emoji: "💡",
+      title: "Tips",
+      body: "Release something new regularly. Mix your genres so the catalogue stays broad. Use debt only when it earns more than it costs.",
+    },
+  ];
+}
+
+function showPanel(id) {
+  const gate = document.getElementById("gate");
+  if (!gate) return;
+  gate.hidden = false;
+  ["title-screen", "setup-screen", "guide-screen"].forEach((panelId) => {
+    const panel = document.getElementById(panelId);
+    if (panel) panel.hidden = panelId !== id;
+  });
+}
+
+function fillStartScores() {
   const list = document.getElementById("start-scores");
+  if (!list) return;
+  const scores = readScores();
   list.replaceChildren();
   Object.keys(DIFFICULTIES).forEach((id) => {
     const best = (scores[id] || [])[0];
@@ -1954,15 +2081,213 @@ function showStart() {
     item.textContent = `${DIFFICULTIES[id].name} best ${Math.round(best.score).toLocaleString("en-US")}`;
     list.append(item);
   });
-  screen.hidden = false;
+}
+
+function showTitle() {
+  stop();
+  guideOpen = false;
+  const win = document.getElementById("win-screen");
+  const lose = document.getElementById("lose-screen");
+  if (win) win.hidden = true;
+  if (lose) lose.hidden = true;
+  if (CONFIG.tagline) setText("title-tagline", CONFIG.tagline);
+  const cont = document.getElementById("continue-button");
+  if (cont) cont.hidden = !hasSave();
+  fillStartScores();
+  showPanel("title-screen");
+  syncPauseOverlay();
+}
+
+function showStart() {
+  showTitle();
 }
 
 function hideStart() {
-  const screen = document.getElementById("start-screen");
-  if (screen) screen.hidden = true;
+  const gate = document.getElementById("gate");
+  if (gate) gate.hidden = true;
+  guideOpen = false;
+}
+
+function showSetup() {
+  guideOpen = false;
+  showPanel("setup-screen");
+}
+
+function rememberGuidePreference() {
+  const box = document.getElementById("guide-dismiss");
+  if (!box) return;
+  settings.skipGuide = !!box.checked;
+  saveSettings();
+}
+
+function ensureCatalogue() {
+  if (!cataloguePromise) {
+    catalogueReady = true;
+    cataloguePromise = Promise.resolve();
+  }
+  return cataloguePromise;
+}
+
+function renderGuide() {
+  const pages = guidePages();
+  const page = pages[Math.min(guidePage, pages.length - 1)];
+  setText("guide-emoji", page.emoji);
+  setText("guide-title", page.title);
+  setText("guide-body", page.body);
+  const dots = document.getElementById("guide-dots");
+  if (dots) {
+    dots.replaceChildren();
+    pages.forEach((item, index) => {
+      const dot = document.createElement("button");
+      dot.type = "button";
+      dot.className = index === guidePage ? "is-on" : "";
+      dot.setAttribute("aria-label", item.title);
+      dot.addEventListener("click", () => {
+        guidePage = index;
+        renderGuide();
+      });
+      dots.append(dot);
+    });
+  }
+  const last = guidePage >= pages.length - 1;
+  const back = document.getElementById("guide-back");
+  const next = document.getElementById("guide-next");
+  const skip = document.getElementById("guide-skip");
+  const go = document.getElementById("guide-go");
+  if (back) back.hidden = guidePage === 0 && guideMode !== "new";
+  if (next) next.hidden = last;
+  if (skip) {
+    skip.hidden = false;
+    skip.textContent = guideMode === "new" ? "Skip" : "Close";
+  }
+  if (go) {
+    go.hidden = !last;
+    if (guideMode === "new") {
+      go.disabled = !catalogueReady;
+      go.textContent = catalogueReady ? "Let's go!" : "Loading catalogue...";
+    } else {
+      go.disabled = false;
+      go.textContent = "Close";
+    }
+  }
+}
+
+function openGuide(mode) {
+  guideMode = mode;
+  guidePage = 0;
+  guideOpen = true;
+  if (mode === "pause" && state && state.status === "playing") {
+    wasPausedBeforeGuide = !!state.paused;
+    if (!state.paused) setSpeed(0);
+  }
+  if (mode === "new") ensureCatalogue();
+  const dismiss = document.getElementById("guide-dismiss");
+  if (dismiss) dismiss.checked = !!settings.skipGuide;
+  showPanel("guide-screen");
+  renderGuide();
+  syncPauseOverlay();
+}
+
+function closeGuide() {
+  const mode = guideMode;
+  rememberGuidePreference();
+  guideOpen = false;
+  if (mode === "pause") {
+    hideStart();
+    if (state && state.status === "playing" && !wasPausedBeforeGuide) setSpeed(state.speed || 1);
+    else syncPauseOverlay();
+    return;
+  }
+  if (mode === "browse") {
+    showTitle();
+    return;
+  }
+  showSetup();
+}
+
+function launchGame() {
+  const name = (draft.name || "").trim().slice(0, 24);
+  stop();
+  blocking = false;
+  welcomeHold = false;
+  menuDepth = 0;
+  promptQueue = [];
+  guideOpen = false;
+  resetProgress(draft.difficulty || "normal");
+  state.sandbox = !!draft.sandbox;
+  state.serviceName = name || SERVICE_NAME;
+  if (state.sandbox) state.nextEventDay = Infinity;
+  state.status = "playing";
+  state.paused = false;
+  if (hasUi()) {
+    hideStart();
+    syncPauseOverlay();
+    resetUi();
+    if (!settings.tutorialDismissed) openTutorial(0);
+  }
+  logIntro();
+  saveGame();
+  start();
+  startAutosave();
+}
+
+function requestLaunch() {
+  rememberGuidePreference();
+  if (!catalogueReady) {
+    const go = document.getElementById("guide-go");
+    const skip = document.getElementById("guide-skip");
+    if (go) {
+      go.disabled = true;
+      go.textContent = "Loading catalogue...";
+    }
+    if (skip && guideMode === "new") skip.disabled = true;
+    ensureCatalogue().then(() => {
+      catalogueReady = true;
+      if (skip) skip.disabled = false;
+      if (guideOpen && guideMode === "new") launchGame();
+    });
+    return;
+  }
+  launchGame();
+}
+
+function continueGame() {
+  if (!loadGame()) {
+    showTitle();
+    return;
+  }
+  guideOpen = false;
+  hideStart();
+  syncPauseOverlay();
+  if (state.status === "playing") {
+    const missed = Math.max(0, Math.min(300, Math.floor((Date.now() - (state.savedAt || Date.now())) / 1000)));
+    resetUi();
+    startAutosave();
+    if (missed >= 1) {
+      const summary = catchUp(missed);
+      showWelcome(summary);
+    } else start();
+    return;
+  }
+  resetUi();
+  showEndScreen();
+}
+
+function stepGuide(delta) {
+  const pages = guidePages();
+  if (delta < 0 && guidePage === 0 && guideMode === "new") {
+    rememberGuidePreference();
+    showSetup();
+    return;
+  }
+  guidePage = clamp(guidePage + delta, 0, pages.length - 1);
+  renderGuide();
 }
 
 function showEndScreen() {
+  hideStart();
+  const overlay = typeof document !== "undefined" ? document.getElementById("pause-overlay") : null;
+  if (overlay) overlay.hidden = true;
   const win = document.getElementById("win-screen");
   const lose = document.getElementById("lose-screen");
   if (!win || !lose) return;
@@ -1992,7 +2317,7 @@ function fillBoard(id) {
   const root = document.getElementById(id);
   if (!root) return;
   root.replaceChildren();
-  const list = readScores()[state.difficulty] || [];
+  const list = readScores()[scoreBucket()] || [];
   list.forEach((entry, index) => {
     const item = document.createElement("li");
     item.textContent = `${index + 1}. ${Math.round(entry.score).toLocaleString("en-US")} · day ${entry.day} · ${formatSubscribers(entry.subs)}`;
@@ -2033,10 +2358,11 @@ function paintSpeed() {
 }
 
 function paint(view) {
+  const name = displayName();
   document.querySelectorAll(".js-service-name").forEach((el) => {
-    el.textContent = SERVICE_NAME;
+    el.textContent = name;
   });
-  document.title = SERVICE_NAME;
+  document.title = name;
   const cashEl = setText("cash-value", formatCash(view.cash));
   if (cashEl) cashEl.classList.toggle("is-negative", view.cash < 0);
   setText("subs-value", formatSubscribers(view.subscribers));
@@ -2626,12 +2952,17 @@ function closeSettings() {
 }
 
 function loadSettings() {
-  if (typeof localStorage === "undefined") return { animations: true, tutorialDismissed: false };
+  const fresh = { animations: true, tutorialDismissed: false, skipGuide: false };
+  if (typeof localStorage === "undefined") return fresh;
   try {
     const data = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}");
-    return { animations: data.animations !== false, tutorialDismissed: !!data.tutorialDismissed };
+    return {
+      animations: data.animations !== false,
+      tutorialDismissed: !!data.tutorialDismissed,
+      skipGuide: !!data.skipGuide,
+    };
   } catch (err) {
-    return { animations: true, tutorialDismissed: false };
+    return fresh;
   }
 }
 
@@ -2977,8 +3308,40 @@ function bindUi() {
   document.getElementById("lose-again").addEventListener("click", returnToMenu);
   document.getElementById("difficulty-grid").addEventListener("click", (event) => {
     const card = event.target.closest("[data-difficulty]");
-    if (card) beginGame(card.dataset.difficulty);
+    if (!card) return;
+    draft.difficulty = card.dataset.difficulty;
+    document.querySelectorAll("#difficulty-grid .diff-card").forEach((el) => {
+      el.classList.toggle("is-on", el === card);
+    });
   });
+  document.getElementById("start-game").addEventListener("click", showSetup);
+  document.getElementById("continue-button").addEventListener("click", continueGame);
+  document.getElementById("title-help").addEventListener("click", () => openGuide("browse"));
+  document.getElementById("setup-back").addEventListener("click", showTitle);
+  document.getElementById("setup-next").addEventListener("click", () => {
+    const selected = document.querySelector("#difficulty-grid .diff-card.is-on");
+    draft.difficulty = selected ? selected.dataset.difficulty : draft.difficulty;
+    draft.sandbox = !!document.getElementById("sandbox-toggle").checked;
+    draft.name = document.getElementById("service-name").value || "";
+    if (settings.skipGuide) launchGame();
+    else openGuide("new");
+  });
+  document.getElementById("guide-back").addEventListener("click", () => stepGuide(-1));
+  document.getElementById("guide-next").addEventListener("click", () => stepGuide(1));
+  document.getElementById("guide-skip").addEventListener("click", () => {
+    if (guideMode === "new") requestLaunch();
+    else closeGuide();
+  });
+  document.getElementById("guide-go").addEventListener("click", () => {
+    if (guideMode === "new") requestLaunch();
+    else closeGuide();
+  });
+  document.getElementById("guide-dismiss").addEventListener("change", rememberGuidePreference);
+  document.getElementById("help-button").addEventListener("click", () => {
+    if (state && state.status === "playing") openGuide("pause");
+    else openGuide("browse");
+  });
+  document.getElementById("resume-button").addEventListener("click", () => setSpeed(state.speed || 1));
   document.getElementById("tutorial-next").addEventListener("click", () => openTutorial(tutorialIndex + 1));
   document.getElementById("tutorial-skip").addEventListener("click", () => openTutorial(TUTORIAL.length));
   document.addEventListener("keydown", (event) => {
@@ -2992,9 +3355,13 @@ function bindUi() {
       else if (!document.getElementById("rival-modal").hidden) {
         document.getElementById("rival-modal").hidden = true;
         releaseClock();
-      } else if (!document.getElementById("milestone-modal").hidden) dismissBlock();
+      }       else if (!document.getElementById("milestone-modal").hidden) dismissBlock();
+      else if (guideOpen) closeGuide();
       return;
     }
+    if (guideOpen) return;
+    const gate = document.getElementById("gate");
+    if (gate && !gate.hidden) return;
     if (tag) return;
     if (event.key === " " || event.code === "Space") {
       event.preventDefault();
@@ -3009,6 +3376,11 @@ function bindUi() {
     observer.observe(chart);
   }
   window.addEventListener("pagehide", saveGame);
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden || !state || state.status !== "playing" || state.paused) return;
+    if (blocking || menuDepth > 0 || welcomeHold || guideOpen) return;
+    setSpeed(0);
+  });
 }
 
 function mountUi() {
@@ -3070,21 +3442,8 @@ rivals = createRivals(difficulty());
 uiEvents = [openingEvent()];
 
 if (typeof document !== "undefined") {
-  const loaded = loadGame();
   mountUi();
-  if (!loaded) {
-    state.status = "setup";
-    showStart();
-  } else if (state.status === "playing") {
-    const missed = Math.max(0, Math.min(300, Math.floor((Date.now() - (state.savedAt || Date.now())) / 1000)));
-    startAutosave();
-    if (missed >= 1) {
-      const summary = catchUp(missed);
-      showWelcome(summary);
-    } else {
-      start();
-    }
-  } else {
-    showEndScreen();
-  }
+  stop();
+  state.status = "menu";
+  showTitle();
 }

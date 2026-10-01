@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="./style.css">
 </head>
 <body>
   <header class="topbar">
@@ -60,6 +60,7 @@
         <button type="button" class="speed-button" id="speed-2" aria-pressed="false">2×</button>
         <button type="button" class="speed-button" id="speed-4" aria-pressed="false">4×</button>
       </div>
+      <button type="button" class="reset-button" id="help-button" aria-label="How to play">?</button>
       <button type="button" class="reset-button" id="settings-button">Settings</button>
       <button type="button" class="reset-button" id="reset-button">Reset</button>
     </div>
@@ -197,7 +198,14 @@
       <ol id="event-log"></ol>
     </section>
 
-    <footer class="credit">Created by OJ Spenny Gaming</footer>
+    <footer class="credit">
+      <p>Created by OJ Spenny Gaming</p>
+      <p class="attribution">
+        <img class="tmdb-logo" src="https://www.themoviedb.org/assets/2/v4/logos/v2/blue_short-8e7b30f73a4020692ccca9c88bafe5dcb6f8a62a4c6bc55cd9ba82bb2cd95f6c.svg" alt="TMDB">
+        This product uses the TMDB API but is not endorsed or certified by TMDB.
+      </p>
+      <p class="attribution">Fan-made game. Not affiliated with or endorsed by any person, title or company shown.</p>
+    </footer>
   </div>
 
   <div class="overlay" id="milestone-modal" hidden>
@@ -231,18 +239,79 @@
     <p class="credit">Created by OJ Spenny Gaming</p>
   </div>
 
-  <div class="endscreen start-screen" id="start-screen" hidden>
+  <div class="gate" id="gate" hidden>
+    <section class="gate-panel" id="title-screen">
+      <div class="logo logo-xl">
+        <span class="logo-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="42" height="42" focusable="false">
+            <path fill="currentColor" d="M7.5 4.8v14.4L19.2 12 7.5 4.8z"/>
+          </svg>
+        </span>
+        <span class="logo-word">StreamCo</span>
+      </div>
+      <p class="gate-tagline" id="title-tagline">Build a streaming empire.</p>
+      <div class="gate-actions">
+        <button type="button" class="buy-button buy-xl" id="start-game">Start Game</button>
+        <button type="button" class="buy-button buy-xl" id="continue-button" hidden>Continue</button>
+        <button type="button" class="text-link" id="title-help">How to play</button>
+      </div>
+      <ol class="score-list" id="start-scores"></ol>
+      <footer class="credit">
+        <p>Created by OJ Spenny Gaming</p>
+        <p class="attribution">
+          <img class="tmdb-logo" src="https://www.themoviedb.org/assets/2/v4/logos/v2/blue_short-8e7b30f73a4020692ccca9c88bafe5dcb6f8a62a4c6bc55cd9ba82bb2cd95f6c.svg" alt="TMDB">
+          This product uses the TMDB API but is not endorsed or certified by TMDB.
+        </p>
+        <p class="attribution">Fan-made game. Not affiliated with or endorsed by any person, title or company shown.</p>
+      </footer>
+    </section>
+
+    <section class="gate-panel" id="setup-screen" hidden>
+      <p class="modal-kicker">Setup</p>
+      <h2>Open the service</h2>
+      <p class="modal-line">Pick a difficulty. Sandbox turns off defeat and random events.</p>
+      <div class="difficulty-grid" id="difficulty-grid">
+        <button type="button" class="diff-card" data-difficulty="easy"><strong>Easy</strong><span>$20,000 · 2 rivals · gentler setbacks</span></button>
+        <button type="button" class="diff-card is-on" data-difficulty="normal"><strong>Normal</strong><span>$10,000 · 3 rivals · the standard slate</span></button>
+        <button type="button" class="diff-card" data-difficulty="hard"><strong>Hard</strong><span>$6,000 · 4 rivals · harsher bad news</span></button>
+      </div>
+      <label class="settings-row" for="sandbox-toggle"><input type="checkbox" id="sandbox-toggle"> Sandbox (no losing, no random events)</label>
+      <label class="name-field">Service name
+        <input id="service-name" type="text" maxlength="24" placeholder="StreamCo" autocomplete="off">
+      </label>
+      <div class="modal-actions">
+        <button type="button" class="reset-button" id="setup-back">Back</button>
+        <button type="button" class="buy-button" id="setup-next">Next</button>
+      </div>
+    </section>
+
+    <section class="gate-panel" id="guide-screen" hidden>
+      <p class="guide-emoji" id="guide-emoji" aria-hidden="true">🎯</p>
+      <h2 id="guide-title">The goal</h2>
+      <p class="modal-line" id="guide-body"></p>
+      <div class="dots" id="guide-dots"></div>
+      <label class="settings-row" for="guide-dismiss"><input type="checkbox" id="guide-dismiss"> Don't show this again</label>
+      <div class="modal-actions">
+        <button type="button" class="reset-button" id="guide-skip">Skip</button>
+        <button type="button" class="reset-button" id="guide-back">Back</button>
+        <button type="button" class="buy-button" id="guide-next">Next</button>
+        <button type="button" class="buy-button buy-xl" id="guide-go" hidden>Let's go!</button>
+      </div>
+      <footer class="credit">
+        <p>Created by OJ Spenny Gaming</p>
+        <p class="attribution">
+          <img class="tmdb-logo" src="https://www.themoviedb.org/assets/2/v4/logos/v2/blue_short-8e7b30f73a4020692ccca9c88bafe5dcb6f8a62a4c6bc55cd9ba82bb2cd95f6c.svg" alt="TMDB">
+          This product uses the TMDB API but is not endorsed or certified by TMDB.
+        </p>
+        <p class="attribution">Fan-made game. Not affiliated with or endorsed by any person, title or company shown.</p>
+      </footer>
+    </section>
+  </div>
+
+  <div class="pause-overlay" id="pause-overlay" hidden>
     <p class="modal-kicker js-service-name">StreamCo</p>
-    <h2>Open the service</h2>
-    <p class="modal-line">Pick a difficulty. One real second is one day.</p>
-    <div class="difficulty-grid" id="difficulty-grid">
-      <button type="button" class="diff-card" data-difficulty="easy"><strong>Easy</strong><span>$20,000 · 2 rivals · gentler setbacks</span></button>
-      <button type="button" class="diff-card" data-difficulty="normal"><strong>Normal</strong><span>$10,000 · 3 rivals · the standard slate</span></button>
-      <button type="button" class="diff-card" data-difficulty="hard"><strong>Hard</strong><span>$6,000 · 4 rivals · harsher bad news</span></button>
-      <button type="button" class="diff-card" data-difficulty="sandbox"><strong>Sandbox</strong><span>$40,000 · no defeat · no random events</span></button>
-    </div>
-    <ol class="score-list" id="start-scores"></ol>
-    <p class="credit">Created by OJ Spenny Gaming</p>
+    <h2>Paused</h2>
+    <button type="button" class="buy-button buy-xl" id="resume-button">Resume</button>
   </div>
 
   <div class="overlay" id="commission-modal" hidden>
@@ -347,6 +416,7 @@
   <noscript>
     <p class="noscript">StreamCo needs JavaScript to run the day-by-day simulation.</p>
   </noscript>
-  <script src="game.js"></script>
+  <script src="./config.js"></script>
+  <script src="./game.js"></script>
 </body>
 </html>

@@ -1,14 +1,18 @@
 # StreamCo
 
-A single-page streaming-service tycoon. Plain HTML, CSS, and vanilla JavaScript. No backend.
+A single-page streaming-service tycoon. Plain HTML, CSS, and vanilla JavaScript. No backend and no build step.
 
-The service name lives in one place: `SERVICE_NAME` at the top of `game.js`.
+Play it online: https://comfy-blancmange-b6c90e.netlify.app/
+
+The product name lives in one place: `SERVICE_NAME` at the top of `game.js`. Tunable targets live in `config.js`.
 
 ## Play
 
-Open `index.html` in a browser. One real second is one in-game day at 1×. Pause, 2×, and 4× sit in the top bar. Space pauses. Keys 1, 2, and 3 set 1×, 2×, and 4×.
+Open the live site, or `index.html` in a browser. The clock does not run on load. A new game goes Title, then Setup, then How to Play, then **Let's go!**. Continue appears only when a save exists, and that is when a saved run resumes.
 
-A new run starts by picking Easy, Normal, Hard, or Sandbox. Easy starts with $20,000 and two rivals. Normal starts with $10,000 and three. Hard starts with $6,000 and four, and bad events hit harder. Sandbox starts with $40,000, cannot go broke, and has no random events.
+One real second is one in-game day at 1×. Pause, 2×, and 4× sit in the top bar. Space pauses. Keys 1, 2, and 3 set 1×, 2×, and 4×. The game also pauses when the browser tab is hidden. **?** in the top bar reopens How to Play and pauses the run.
+
+Setup offers Easy, Normal, and Hard, plus a Sandbox checkbox (no defeat, no random events) and an optional service name. Easy starts with $20,000 and two rivals. Normal starts with $10,000 and three. Hard starts with $6,000 and four, and bad events hit harder. Tick **Don't show this again** on How to Play to skip that guide on later new games.
 
 The top bar shows cash, subscribers, the day, and a monthly price slider ($2.00–$20.00). Cash turns red when it is negative. Rising stats flash green and show a `+` change. Falling stats flash red and show a `-` change. The slider line reads `Growth: High / Medium / Low` and `Churn: High / Medium / Low`. Brand sits under the service name. Timed effects show as chips with days remaining.
 
@@ -16,7 +20,7 @@ Buy growth, retention, and platform upgrades on the left. Each repeat purchase r
 
 The right side has Home, Analytics, Regions, Rivals, and Trophies. Home keeps the subscriber graph and the poster library. Click a tile for genre, release day, hit or flop, freshness, and upkeep. The event log under the dashboard keeps the newest line at the top and can filter All, Money, Events, or Rivals.
 
-Reset asks for confirmation, then returns to the difficulty screen. The footer reads "Created by OJ Spenny Gaming" on the dashboard and on the win screen.
+Reset asks for confirmation, then returns to the title screen and clears the save. The footer reads "Created by OJ Spenny Gaming" on the dashboard, the title screen, How to Play, and the win screen.
 
 The game saves to `localStorage` every 10 seconds, and also when you buy, release the price slider, leave the page, or win or lose. Opening the page restores the saved run. If you were away, up to five minutes comes back at reduced efficiency with a welcome summary. Milestones you already passed do not pop up again after a reload. Settings can export or import that save as a text file.
 
